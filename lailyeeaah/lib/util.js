@@ -63,7 +63,7 @@ function clearSessionCookie(res) {
   res.setHeader("Set-Cookie", `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0`);
 }
 
-// Hitung tanggal berakhir = tanggal sewa + durasi (hari / minggu / bulan)
+// Hitung tanggal berakhir = tanggal sewa + durasi (hari / minggu / bulan / tahun)
 function hitungTanggalBerakhir(tanggalSewaISO, nilai, satuan) {
   const d = new Date(tanggalSewaISO);
   if (isNaN(d.getTime())) throw new Error("Tanggal sewa tidak valid");
@@ -72,7 +72,8 @@ function hitungTanggalBerakhir(tanggalSewaISO, nilai, satuan) {
   if (satuan === "hari") d.setUTCDate(d.getUTCDate() + n);
   else if (satuan === "minggu") d.setUTCDate(d.getUTCDate() + n * 7);
   else if (satuan === "bulan") d.setUTCMonth(d.getUTCMonth() + n);
-  else throw new Error("Satuan durasi harus hari / minggu / bulan");
+  else if (satuan === "tahun") d.setUTCFullYear(d.getUTCFullYear() + n);
+  else throw new Error("Satuan durasi harus hari / minggu / bulan / tahun");
   return d.toISOString();
 }
 
@@ -113,6 +114,10 @@ function hitungHargaSewa(paket, durasiNilai, durasiSatuan, customHarga) {
   }
   // Jika sewa bulanan dan paket 1 bulan standar: harga paket dikali jumlah bulan
   if (durasiSatuan === "bulan" && (nama.includes("1 bulan") || (nama.includes("bulan") && !nama.match(/[2-9]\d*\s*bulan/)))) {
+    return baseHarga * n;
+  }
+  // Jika sewa tahunan dan paket 1 tahun standar: harga paket dikali jumlah tahun
+  if (durasiSatuan === "tahun" && (nama.includes("1 tahun") || (nama.includes("tahun") && !nama.match(/[2-9]\d*\s*tahun/)))) {
     return baseHarga * n;
   }
   // Paket flat / bundle tetap sesuai harga paket

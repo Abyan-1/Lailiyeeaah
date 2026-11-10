@@ -20,7 +20,7 @@ create table if not exists public.rentals (
   device text not null,
   tanggal_sewa timestamptz not null,
   durasi_nilai integer not null check (durasi_nilai >= 1),
-  durasi_satuan text not null check (durasi_satuan in ('hari','minggu','bulan')),
+  durasi_satuan text not null check (durasi_satuan in ('hari','minggu','bulan','tahun')),
   tanggal_berakhir timestamptz not null,        -- dihitung server saat simpan
   paket_harga_id uuid references public.price_packages (id),
   harga integer not null,                       -- disalin dari paket saat transaksi

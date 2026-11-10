@@ -30,6 +30,16 @@ async function api(url, opt = {}) {
   return json;
 }
 
+function getPaketSatuan(p) {
+  if (!p) return "";
+  const nama = (p.nama_paket || "").toLowerCase();
+  if (nama.includes("hari")) return "hari";
+  if (nama.includes("minggu")) return "minggu";
+  if (nama.includes("bulan")) return "bulan";
+  if (nama.includes("tahun")) return "tahun";
+  return "lainnya";
+}
+
 // Nilai default input datetime-local = sekarang (waktu lokal browser)
 function nowLocalInput() {
   const d = new Date();
@@ -135,7 +145,37 @@ function monitoringPage() {
         .sort((a, b) => new Date(a.tanggal_berakhir) - new Date(b.tanggal_berakhir));
     },
 
-    // ---------- hitung harga berdasarkan durasi ----------
+    // ---------- hitung harga & filter paket berdasarkan satuan ----------
+    getPaketSatuan,
+    get filteredPackages() {
+      if (!this.form.durasi_satuan) return this.packages;
+      const cocok = this.packages.filter((p) => this.getPaketSatuan(p) === this.form.durasi_satuan);
+      return cocok.length > 0 ? cocok : this.packages;
+    },
+    onSatuanChange() {
+      const cocok = this.filteredPackages;
+      if (cocok.length > 0) {
+        if (!cocok.some((p) => p.id === this.form.paket_harga_id)) {
+          this.form.paket_harga_id = cocok[0].id;
+          this.sesuaikanDurasiDariPaket(cocok[0]);
+        }
+      } else {
+        this.form.paket_harga_id = "";
+      }
+    },
+    onPaketChange() {
+      const p = this.packages.find((x) => x.id === this.form.paket_harga_id);
+      if (p) this.sesuaikanDurasiDariPaket(p);
+    },
+    sesuaikanDurasiDariPaket(p) {
+      if (!p) return;
+      const nama = (p.nama_paket || "").toLowerCase();
+      const match = nama.match(/^(\d+)\s*(hari|minggu|bulan|tahun)/i);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (val >= 1) this.form.durasi_nilai = val;
+      }
+    },
     hitungTotalHarga() {
       const p = this.packages.find((x) => x.id === this.form.paket_harga_id);
       if (!p) return 0;
@@ -151,6 +191,9 @@ function monitoringPage() {
         return baseHarga * n;
       }
       if (satuan === "bulan" && (nama.includes("1 bulan") || (nama.includes("bulan") && !nama.match(/[2-9]\d*\s*bulan/)))) {
+        return baseHarga * n;
+      }
+      if (satuan === "tahun" && (nama.includes("1 tahun") || (nama.includes("tahun") && !nama.match(/[2-9]\d*\s*tahun/)))) {
         return baseHarga * n;
       }
       return baseHarga;
@@ -174,6 +217,11 @@ function monitoringPage() {
       } else {
         this.editId = null;
         this.form = kosong();
+        const cocok = this.filteredPackages;
+        if (cocok.length > 0) {
+          this.form.paket_harga_id = cocok[0].id;
+          this.sesuaikanDurasiDariPaket(cocok[0]);
+        }
       }
       this.showForm = true;
     },
@@ -243,7 +291,7 @@ function monitoringPage() {
       device: "",
       tanggal_sewa: nowLocalInput(),
       durasi_nilai: 1,
-      durasi_satuan: "bulan",
+      durasi_satuan: "hari",
       paket_harga_id: "",
     };
   }

@@ -188,18 +188,19 @@
           </div>
           <div>
             <label class="label-field">Satuan</label>
-            <select x-model="form.durasi_satuan" class="input-field">
+            <select x-model="form.durasi_satuan" @change="onSatuanChange()" class="input-field">
               <option value="hari">hari</option>
               <option value="minggu">minggu</option>
               <option value="bulan">bulan</option>
+              <option value="tahun">tahun</option>
             </select>
           </div>
         </div>
         <div>
           <label class="label-field">Harga sewa (paket) *</label>
-          <select x-model="form.paket_harga_id" required class="input-field">
+          <select x-model="form.paket_harga_id" @change="onPaketChange()" required class="input-field">
             <option value="" disabled>Pilih paket harga…</option>
-            <template x-for="p in packages" :key="p.id">
+            <template x-for="p in filteredPackages" :key="p.id">
               <option :value="p.id" x-text="`${p.nama_paket} — ${fmtRupiah(p.harga)}`"></option>
             </template>
           </select>
@@ -211,7 +212,9 @@
           <p class="text-[11px] text-ink/45 mt-1" x-show="form.paket_harga_id && form.durasi_satuan === 'hari' && form.durasi_nilai > 1 && (packages.find(x => x.id === form.paket_harga_id)?.nama_paket || '').toLowerCase().includes('hari')">
             💡 Paket harian otomatis dikalikan durasi (<span x-text="form.durasi_nilai"></span> hari × <span x-text="fmtRupiah(packages.find(x => x.id === form.paket_harga_id)?.harga)"></span>).
           </p>
-          <p class="text-[11px] text-ink/45 mt-1">Daftar paket bisa diubah lewat tabel <b>price_packages</b> di Supabase atau API /api/packages.</p>
+          <p class="text-[11px] text-ink/45 mt-1">
+            Paket yang tampil disesuaikan khusus satuan <b><span x-text="form.durasi_satuan"></span></b>.
+          </p>
         </div>
       </div>
 

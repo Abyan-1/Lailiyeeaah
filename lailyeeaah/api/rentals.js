@@ -155,7 +155,7 @@ function validasi(b) {
   if (!b.tanggal_sewa || isNaN(new Date(b.tanggal_sewa).getTime())) return "Tanggal sewa tidak valid";
   const n = parseInt(b.durasi_nilai, 10);
   if (!n || n < 1) return "Durasi minimal 1";
-  if (!["hari", "minggu", "bulan"].includes(b.durasi_satuan)) return "Satuan durasi tidak valid";
+  if (!["hari", "minggu", "bulan", "tahun"].includes(b.durasi_satuan)) return "Satuan durasi tidak valid";
   if (!b.paket_harga_id) return "Paket harga wajib dipilih";
   if (b.no_wa && !/^\d{8,15}$/.test(String(b.no_wa).replace(/\D/g, "")))
     return "Nomor WA tidak valid (contoh: 628123456789)";
