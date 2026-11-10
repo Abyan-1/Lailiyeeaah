@@ -24,8 +24,10 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: e.message });
   }
 
-  const now = new Date().toISOString();
-  const hasil = { dicek_pada: now, terkirim: 0, gagal: 0, detail: [] };
+  const now = new Date();
+  // Kirim notifikasi jika sewa akan habis dalam 10 menit (atau sudah habis)
+  const triggerTime = new Date(now.getTime() + 10 * 60 * 1000);
+  const hasil = { dicek_pada: now.toISOString(), terkirim: 0, gagal: 0, detail: [] };
 
   try {
     const { data: expired, error } = await supabase
@@ -34,7 +36,7 @@ module.exports = async (req, res) => {
       .eq("status", "aktif")
       .eq("notif_terkirim", false)
       .lt("notif_percobaan", MAX_PERCOBAAN)
-      .lte("tanggal_berakhir", now);
+      .lte("tanggal_berakhir", triggerTime.toISOString());
     if (error) throw error;
 
     for (const r of expired || []) {
@@ -79,8 +81,10 @@ module.exports = async (req, res) => {
 
 function buatPesan(r) {
   const durasi = `${r.durasi_nilai} ${r.durasi_satuan}`;
+  const sudahHabis = new Date(r.tanggal_berakhir) <= new Date();
+  const judulEmoji = sudahHabis ? "📢 SEWA HABIS" : "⚠️ SEWA HAMPIR HABIS (10 menit lagi)";
   const baris = [
-    "📢 SEWA HABIS — Lailyeeaah",
+    `${judulEmoji} — Lailyeeaah`,
     `Nama   : ${r.nama}`,
   ];
   if (r.tipe_akun) baris.push(`Layanan: ${formatTipeAkun(r.tipe_akun)}`);
