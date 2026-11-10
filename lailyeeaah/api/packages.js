@@ -26,13 +26,15 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === "POST") {
-      const { nama_paket, harga } = req.body || {};
+      const { nama_paket, harga, tipe_akun } = req.body || {};
       if (!nama_paket || !String(nama_paket).trim()) return res.status(400).json({ error: "Nama paket wajib" });
       const h = parseInt(harga, 10);
       if (isNaN(h) || h < 0) return res.status(400).json({ error: "Harga tidak valid" });
+      const insert = { nama_paket: String(nama_paket).trim(), harga: h, aktif: true };
+      if (tipe_akun) insert.tipe_akun = String(tipe_akun).trim();
       const { data, error } = await supabase
         .from("price_packages")
-        .insert({ nama_paket: String(nama_paket).trim(), harga: h, aktif: true })
+        .insert(insert)
         .select()
         .single();
       if (error) throw error;
@@ -45,6 +47,7 @@ module.exports = async (req, res) => {
       const b = req.body || {};
       const update = {};
       if (b.nama_paket !== undefined) update.nama_paket = String(b.nama_paket).trim();
+      if (b.tipe_akun !== undefined) update.tipe_akun = String(b.tipe_akun).trim();
       if (b.harga !== undefined) {
         const h = parseInt(b.harga, 10);
         if (isNaN(h) || h < 0) return res.status(400).json({ error: "Harga tidak valid" });

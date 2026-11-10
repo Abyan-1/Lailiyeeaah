@@ -8,6 +8,7 @@ create extension if not exists "pgcrypto";
 create table if not exists public.price_packages (
   id uuid primary key default gen_random_uuid(),
   nama_paket text not null,
+  tipe_akun text not null default 'pro_sharing',  -- pro_sharing / pro_privat / max_sharing / max_privat
   harga integer not null check (harga >= 0),
   aktif boolean not null default true
 );
@@ -18,6 +19,8 @@ create table if not exists public.rentals (
   nama text not null check (char_length(nama) <= 50),
   no_wa text,                                   -- format 628xxxxxxxxxx, boleh null
   device text not null,
+  tipe_akun text,                               -- pro_sharing / pro_privat / max_sharing / max_privat
+  email_akun text,                              -- akun email yang digunakan
   tanggal_sewa timestamptz not null,
   durasi_nilai integer not null check (durasi_nilai >= 1),
   durasi_satuan text not null check (durasi_satuan in ('hari','minggu','bulan','tahun')),
@@ -43,10 +46,15 @@ alter table public.rentals enable row level security;
 alter table public.price_packages enable row level security;
 
 -- ===================== Seed paket harga awal (silakan ubah) =====================
-insert into public.price_packages (nama_paket, harga) values
-  ('Harian (1 Hari)', 35000),
-  ('1 Minggu', 45000),
-  ('1 Bulan', 250000),
-  ('3 Bulan', 300000),
-  ('1 Tahun', 1000000)
+insert into public.price_packages (nama_paket, tipe_akun, harga) values
+  ('1 Hari (Pro Sharing)', 'pro_sharing', 35000),
+  ('1 Hari (Max Sharing)', 'max_sharing', 45000),
+  ('1 Minggu', 'pro_sharing', 150000),
+  ('1 Minggu', 'pro_sharing', 180000),
+  ('1 Minggu', 'max_sharing', 250000),
+  ('1 Bulan', 'pro_privat', 250000),
+  ('1 Bulan', 'pro_privat', 285000),
+  ('1 Bulan', 'pro_privat', 290000),
+  ('1 Bulan', 'pro_privat', 300000),
+  ('1 Bulan (Max Privat)', 'max_privat', 1000000)
 on conflict do nothing;

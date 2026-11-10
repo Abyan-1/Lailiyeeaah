@@ -4,6 +4,17 @@ const { createClient } = require("@supabase/supabase-js");
 
 const COOKIE_NAME = "laily_session";
 
+const TIPE_AKUN_LABEL = {
+  pro_sharing: "Pro Sharing",
+  pro_privat: "Pro Privat",
+  max_sharing: "Max Sharing",
+  max_privat: "Max Privat",
+};
+
+function formatTipeAkun(val) {
+  return TIPE_AKUN_LABEL[val] || val || "-";
+}
+
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
@@ -132,6 +143,7 @@ module.exports = {
   clearSessionCookie,
   hitungTanggalBerakhir,
   hitungHargaSewa,
+  formatTipeAkun,
   formatWIB,
   formatRupiah,
 };

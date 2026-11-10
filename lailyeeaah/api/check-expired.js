@@ -3,7 +3,7 @@
 // Mencari sewa aktif yang sudah habis & belum dinotif, lalu kirim WA via Fonnte.
 // - Berhasil → notif_terkirim = true + waktu kirim disimpan (tidak akan dobel)
 // - Gagal    → notif_percobaan + 1, dicoba lagi di putaran berikutnya (maks 3x)
-const { getSupabase, formatWIB, formatRupiah } = require("../lib/util");
+const { getSupabase, formatWIB, formatRupiah, formatTipeAkun } = require("../lib/util");
 
 const MAX_PERCOBAAN = 3;
 
@@ -79,16 +79,21 @@ module.exports = async (req, res) => {
 
 function buatPesan(r) {
   const durasi = `${r.durasi_nilai} ${r.durasi_satuan}`;
-  return [
+  const baris = [
     "📢 SEWA HABIS — Lailyeeaah",
     `Nama   : ${r.nama}`,
+  ];
+  if (r.tipe_akun) baris.push(`Tipe   : ${formatTipeAkun(r.tipe_akun)}`);
+  if (r.email_akun) baris.push(`Email  : ${r.email_akun}`);
+  baris.push(
     `Device : ${r.device}`,
     `Mulai  : ${formatWIB(r.tanggal_sewa)}`,
     `Durasi : ${durasi}`,
     `Harga  : Rp${formatRupiah(r.harga)}`,
     `Habis  : ${formatWIB(r.tanggal_berakhir)}`,
-    "Segera konfirmasi perpanjangan atau cabut akses ya.",
-  ].join("\n");
+    "Segera konfirmasi perpanjangan atau cabut akses ya."
+  );
+  return baris.join("\n");
 }
 
 async function kirimFonnte(target, message) {

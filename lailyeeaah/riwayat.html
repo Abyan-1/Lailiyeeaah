@@ -68,12 +68,20 @@
           <article class="bg-white rounded-2xl shadow-sm p-4 animate-fade-in">
             <div class="flex justify-between items-start mb-1">
               <div>
-                <h2 class="font-semibold" x-text="r.nama"></h2>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <h2 class="font-semibold text-ink leading-tight" x-text="r.nama"></h2>
+                  <span x-show="r.tipe_akun" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blush-100 text-blush-600" x-text="formatTipeAkun(r.tipe_akun)"></span>
+                </div>
                 <p class="text-xs text-ink/55" x-text="r.device"></p>
+                <p x-show="r.email_akun" class="text-xs text-ink/75 flex items-center gap-1 mt-1 font-mono text-[11px] bg-blush-50 px-2 py-0.5 rounded-md border border-blush-100">
+                  <i data-lucide="mail" class="w-3 h-3 text-blush-400"></i><span x-text="r.email_akun" class="truncate font-semibold"></span>
+                </p>
               </div>
               <span class="badge" :class="statusNotif(r).cls" x-text="'WA: ' + statusNotif(r).label"></span>
             </div>
             <dl class="text-xs text-ink/70 space-y-1 mt-2">
+              <div class="flex justify-between" x-show="r.tipe_akun"><dt>Layanan</dt><dd class="font-medium text-blush-600" x-text="formatTipeAkun(r.tipe_akun)"></dd></div>
+              <div class="flex justify-between" x-show="r.email_akun"><dt>Email Akun</dt><dd class="font-mono text-[11px] truncate max-w-[170px]" x-text="r.email_akun"></dd></div>
               <div class="flex justify-between"><dt>Mulai</dt><dd x-text="fmtWIB(r.tanggal_sewa)"></dd></div>
               <div class="flex justify-between"><dt>Berakhir</dt><dd x-text="fmtWIB(r.tanggal_berakhir)"></dd></div>
               <div class="flex justify-between"><dt>Durasi</dt><dd x-text="`${r.durasi_nilai} ${r.durasi_satuan}`"></dd></div>
@@ -93,6 +101,8 @@
           <thead>
             <tr class="bg-blush-100 text-blush-600 text-left text-xs uppercase">
               <th class="px-4 py-3">Nama</th>
+              <th class="px-4 py-3">Layanan</th>
+              <th class="px-4 py-3">Email Akun</th>
               <th class="px-4 py-3">Device</th>
               <th class="px-4 py-3">Mulai</th>
               <th class="px-4 py-3">Berakhir</th>
@@ -107,6 +117,14 @@
             <template x-for="r in daftar" :key="r.id">
               <tr class="border-t border-blush-100 hover:bg-blush-50">
                 <td class="px-4 py-3 font-semibold" x-text="r.nama"></td>
+                <td class="px-4 py-3 text-xs">
+                  <span x-show="r.tipe_akun" class="font-semibold text-blush-600" x-text="formatTipeAkun(r.tipe_akun)"></span>
+                  <span x-show="!r.tipe_akun" class="text-ink/40">-</span>
+                </td>
+                <td class="px-4 py-3 text-xs font-mono">
+                  <span x-show="r.email_akun" x-text="r.email_akun"></span>
+                  <span x-show="!r.email_akun" class="text-ink/40">-</span>
+                </td>
                 <td class="px-4 py-3" x-text="r.device"></td>
                 <td class="px-4 py-3 text-xs" x-text="fmtWIB(r.tanggal_sewa)"></td>
                 <td class="px-4 py-3 text-xs" x-text="fmtWIB(r.tanggal_berakhir)"></td>

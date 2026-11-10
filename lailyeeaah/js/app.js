@@ -15,6 +15,17 @@ function fmtRupiah(n) {
   return "Rp" + new Intl.NumberFormat("id-ID").format(n || 0);
 }
 
+const TIPE_AKUN_LABEL = {
+  pro_sharing: "Pro Sharing",
+  pro_privat: "Pro Privat",
+  max_sharing: "Max Sharing",
+  max_privat: "Max Privat",
+};
+
+function formatTipeAkun(val) {
+  return TIPE_AKUN_LABEL[val] || val || "-";
+}
+
 async function api(url, opt = {}) {
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
@@ -83,6 +94,9 @@ function monitoringPage() {
         this.form.nama = d.nama || "";
         this.form.no_wa = d.no_wa || "";
         this.form.device = d.device || "";
+        if (d.tipe_akun) this.form.tipe_akun = d.tipe_akun;
+        if (d.email_akun) this.form.email_akun = d.email_akun;
+        this.onTipeAkunChange();
       }
       this.$watch("showForm", () => setTimeout(() => lucide.createIcons(), 50));
     },
@@ -137,7 +151,8 @@ function monitoringPage() {
     get daftar() {
       return this.rentals
         .filter((r) => {
-          const cocokNama = r.nama.toLowerCase().includes(this.search.toLowerCase());
+          const s = this.search.toLowerCase();
+          const cocokNama = r.nama.toLowerCase().includes(s) || (r.email_akun && r.email_akun.toLowerCase().includes(s));
           const st = this.statusKartu(r);
           const cocokFilter = this.filter === "semua" || st === this.filter;
           return cocokNama && cocokFilter;
@@ -145,23 +160,54 @@ function monitoringPage() {
         .sort((a, b) => new Date(a.tanggal_berakhir) - new Date(b.tanggal_berakhir));
     },
 
-    // ---------- hitung harga & filter paket berdasarkan satuan ----------
+    // ---------- hitung harga & filter paket berdasarkan satuan & tipe akun ----------
     getPaketSatuan,
+    formatTipeAkun,
     get filteredPackages() {
       if (!this.form.durasi_satuan) return this.packages;
-      const cocok = this.packages.filter((p) => this.getPaketSatuan(p) === this.form.durasi_satuan);
-      return cocok.length > 0 ? cocok : this.packages;
+      return this.packages.filter((p) => this.getPaketSatuan(p) === this.form.durasi_satuan);
+    },
+    onTipeAkunChange() {
+      if (this.form.tipe_akun === "pro_privat" || this.form.tipe_akun === "max_privat") {
+        this.form.durasi_satuan = "bulan";
+        this.form.durasi_nilai = 1;
+      } else if (this.form.tipe_akun === "pro_sharing" || this.form.tipe_akun === "max_sharing") {
+        if (this.form.durasi_satuan === "bulan" || this.form.durasi_satuan === "tahun") {
+          this.form.durasi_satuan = "hari";
+          this.form.durasi_nilai = 1;
+        }
+      }
+      this.sinkronkanPaket();
     },
     onSatuanChange() {
+      this.sinkronkanPaket();
+    },
+    sinkronkanPaket() {
       const cocok = this.filteredPackages;
-      if (cocok.length > 0) {
-        if (!cocok.some((p) => p.id === this.form.paket_harga_id)) {
-          this.form.paket_harga_id = cocok[0].id;
-          this.sesuaikanDurasiDariPaket(cocok[0]);
-        }
-      } else {
+      if (cocok.length === 0) {
         this.form.paket_harga_id = "";
+        return;
       }
+      if (cocok.some((p) => p.id === this.form.paket_harga_id)) {
+        return;
+      }
+      let terpilih = null;
+      const tipe = this.form.tipe_akun;
+      const satuan = this.form.durasi_satuan;
+
+      if (tipe === "pro_sharing") {
+        if (satuan === "hari") terpilih = cocok.find((p) => p.harga === 35000);
+        else if (satuan === "minggu") terpilih = cocok.find((p) => p.harga === 150000);
+      } else if (tipe === "max_sharing") {
+        if (satuan === "hari") terpilih = cocok.find((p) => p.harga === 45000);
+        else if (satuan === "minggu") terpilih = cocok.find((p) => p.harga === 250000);
+      } else if (tipe === "pro_privat") {
+        if (satuan === "bulan") terpilih = cocok.find((p) => p.harga === 300000 || p.harga === 290000);
+      } else if (tipe === "max_privat") {
+        if (satuan === "bulan") terpilih = cocok.find((p) => p.harga === 1000000);
+      }
+
+      this.form.paket_harga_id = terpilih ? terpilih.id : cocok[0].id;
     },
     onPaketChange() {
       const p = this.packages.find((x) => x.id === this.form.paket_harga_id);
@@ -170,7 +216,7 @@ function monitoringPage() {
     sesuaikanDurasiDariPaket(p) {
       if (!p) return;
       const nama = (p.nama_paket || "").toLowerCase();
-      const match = nama.match(/^(\d+)\s*(hari|minggu|bulan|tahun)/i);
+      const match = nama.match(/(\d+)\s*(hari|minggu|bulan|tahun)/i);
       if (match) {
         const val = parseInt(match[1], 10);
         if (val >= 1) this.form.durasi_nilai = val;
@@ -209,6 +255,8 @@ function monitoringPage() {
           nama: r.nama,
           no_wa: r.no_wa || "",
           device: r.device,
+          tipe_akun: r.tipe_akun || "pro_sharing",
+          email_akun: r.email_akun || "",
           tanggal_sewa: t.toISOString().slice(0, 16),
           durasi_nilai: r.durasi_nilai,
           durasi_satuan: r.durasi_satuan,
@@ -217,11 +265,7 @@ function monitoringPage() {
       } else {
         this.editId = null;
         this.form = kosong();
-        const cocok = this.filteredPackages;
-        if (cocok.length > 0) {
-          this.form.paket_harga_id = cocok[0].id;
-          this.sesuaikanDurasiDariPaket(cocok[0]);
-        }
+        this.onTipeAkunChange();
       }
       this.showForm = true;
     },
@@ -289,6 +333,8 @@ function monitoringPage() {
       nama: "",
       no_wa: "",
       device: "",
+      tipe_akun: "pro_sharing",
+      email_akun: "",
       tanggal_sewa: nowLocalInput(),
       durasi_nilai: 1,
       durasi_satuan: "hari",
@@ -314,7 +360,8 @@ function riwayatPage() {
 
     get daftar() {
       return this.rows.filter((r) => {
-        const cocokNama = r.nama.toLowerCase().includes(this.search.toLowerCase());
+        const cocokNama = r.nama.toLowerCase().includes(this.search.toLowerCase()) ||
+          (r.email_akun && r.email_akun.toLowerCase().includes(this.search.toLowerCase()));
         let cocokBulan = true;
         if (this.bulan) {
           const d = new Intl.DateTimeFormat("sv-SE", {
@@ -338,10 +385,17 @@ function riwayatPage() {
     sewaLagi(r) {
       localStorage.setItem(
         "laily_sewa_lagi",
-        JSON.stringify({ nama: r.nama, no_wa: r.no_wa, device: r.device })
+        JSON.stringify({
+          nama: r.nama,
+          no_wa: r.no_wa,
+          device: r.device,
+          tipe_akun: r.tipe_akun,
+          email_akun: r.email_akun,
+        })
       );
       location.href = "/index.html";
     },
+    formatTipeAkun,
     fmtWIB,
     fmtRupiah,
   };
