@@ -3,12 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".",
   "cleanUrls": true,
-  "crons": [
-    {
-      "path": "/api/check-expired?key=rahasialaili",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
