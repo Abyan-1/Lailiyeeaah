@@ -44,8 +44,9 @@ alter table public.price_packages enable row level security;
 
 -- ===================== Seed paket harga awal (silakan ubah) =====================
 insert into public.price_packages (nama_paket, harga) values
-  ('1 Minggu', 10000),
-  ('1 Bulan', 25000),
-  ('2 Bulan', 45000),
-  ('3 Bulan', 65000)
+  ('Harian (1 Hari)', 35000),
+  ('1 Minggu', 45000),
+  ('1 Bulan', 250000),
+  ('3 Bulan', 300000),
+  ('1 Tahun', 1000000)
 on conflict do nothing;

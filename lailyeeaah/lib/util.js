@@ -94,6 +94,31 @@ function formatRupiah(angka) {
   return new Intl.NumberFormat("id-ID").format(angka || 0);
 }
 
+// Hitung total harga sewa berdasarkan paket, durasi, dan satuan
+function hitungHargaSewa(paket, durasiNilai, durasiSatuan, customHarga) {
+  if (customHarga !== undefined && customHarga !== null && !isNaN(parseInt(customHarga, 10)) && parseInt(customHarga, 10) >= 0) {
+    return parseInt(customHarga, 10);
+  }
+  const n = parseInt(durasiNilai, 10) || 1;
+  const nama = (paket?.nama_paket || "").toLowerCase();
+  const baseHarga = parseInt(paket?.harga, 10) || 0;
+
+  // Jika sewa harian dan paket harian: harga paket dikali jumlah hari
+  if (durasiSatuan === "hari" && nama.includes("hari")) {
+    return baseHarga * n;
+  }
+  // Jika sewa mingguan dan paket 1 minggu standar: harga paket dikali jumlah minggu
+  if (durasiSatuan === "minggu" && nama.includes("minggu") && !nama.match(/[2-9]\d*\s*minggu/)) {
+    return baseHarga * n;
+  }
+  // Jika sewa bulanan dan paket 1 bulan standar: harga paket dikali jumlah bulan
+  if (durasiSatuan === "bulan" && (nama.includes("1 bulan") || (nama.includes("bulan") && !nama.match(/[2-9]\d*\s*bulan/)))) {
+    return baseHarga * n;
+  }
+  // Paket flat / bundle tetap sesuai harga paket
+  return baseHarga;
+}
+
 module.exports = {
   getSupabase,
   requireAuth,
@@ -101,6 +126,7 @@ module.exports = {
   setSessionCookie,
   clearSessionCookie,
   hitungTanggalBerakhir,
+  hitungHargaSewa,
   formatWIB,
   formatRupiah,
 };

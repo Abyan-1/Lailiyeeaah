@@ -7,6 +7,7 @@ const {
   getSupabase,
   requireAuth,
   hitungTanggalBerakhir,
+  hitungHargaSewa,
 } = require("../lib/util");
 
 module.exports = async (req, res) => {
@@ -43,12 +44,13 @@ module.exports = async (req, res) => {
       // Ambil harga dari paket (sumber kebenaran harga = tabel price_packages)
       const { data: paket, error: pErr } = await supabase
         .from("price_packages")
-        .select("id, harga")
+        .select("id, harga, nama_paket")
         .eq("id", b.paket_harga_id)
         .single();
       if (pErr || !paket) return res.status(400).json({ error: "Paket harga tidak ditemukan" });
 
       const tanggal_berakhir = hitungTanggalBerakhir(b.tanggal_sewa, b.durasi_nilai, b.durasi_satuan);
+      const harga = hitungHargaSewa(paket, b.durasi_nilai, b.durasi_satuan, b.harga);
 
       const { data, error } = await supabase
         .from("rentals")
@@ -61,7 +63,7 @@ module.exports = async (req, res) => {
           durasi_satuan: b.durasi_satuan,
           tanggal_berakhir,
           paket_harga_id: paket.id,
-          harga: paket.harga,
+          harga,
           status: "aktif",
         })
         .select()
@@ -94,12 +96,13 @@ module.exports = async (req, res) => {
 
       const { data: paket, error: pErr } = await supabase
         .from("price_packages")
-        .select("id, harga")
+        .select("id, harga, nama_paket")
         .eq("id", b.paket_harga_id)
         .single();
       if (pErr || !paket) return res.status(400).json({ error: "Paket harga tidak ditemukan" });
 
       const tanggal_berakhir = hitungTanggalBerakhir(b.tanggal_sewa, b.durasi_nilai, b.durasi_satuan);
+      const harga = hitungHargaSewa(paket, b.durasi_nilai, b.durasi_satuan, b.harga);
 
       const update = {
         nama: String(b.nama).trim().slice(0, 50),
@@ -110,7 +113,7 @@ module.exports = async (req, res) => {
         durasi_satuan: b.durasi_satuan,
         tanggal_berakhir,
         paket_harga_id: paket.id,
-        harga: paket.harga,
+        harga,
       };
       // Jika tanggal berakhir mundur ke masa depan lagi, reset status notif
       if (new Date(tanggal_berakhir) > new Date()) {

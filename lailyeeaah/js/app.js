@@ -37,6 +37,12 @@ function nowLocalInput() {
   return d.toISOString().slice(0, 16);
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof lucide !== "undefined" && lucide.createIcons) {
+    lucide.createIcons();
+  }
+});
+
 // ====================== HALAMAN MONITORING ======================
 function monitoringPage() {
   return {
@@ -129,6 +135,27 @@ function monitoringPage() {
         .sort((a, b) => new Date(a.tanggal_berakhir) - new Date(b.tanggal_berakhir));
     },
 
+    // ---------- hitung harga berdasarkan durasi ----------
+    hitungTotalHarga() {
+      const p = this.packages.find((x) => x.id === this.form.paket_harga_id);
+      if (!p) return 0;
+      const n = parseInt(this.form.durasi_nilai, 10) || 1;
+      const satuan = this.form.durasi_satuan;
+      const nama = (p.nama_paket || "").toLowerCase();
+      const baseHarga = parseInt(p.harga, 10) || 0;
+
+      if (satuan === "hari" && nama.includes("hari")) {
+        return baseHarga * n;
+      }
+      if (satuan === "minggu" && nama.includes("minggu") && !nama.match(/[2-9]\d*\s*minggu/)) {
+        return baseHarga * n;
+      }
+      if (satuan === "bulan" && (nama.includes("1 bulan") || (nama.includes("bulan") && !nama.match(/[2-9]\d*\s*bulan/)))) {
+        return baseHarga * n;
+      }
+      return baseHarga;
+    },
+
     // ---------- form tambah / edit ----------
     bukaForm(r = null) {
       if (r) {
@@ -155,6 +182,7 @@ function monitoringPage() {
       try {
         const body = JSON.stringify({
           ...this.form,
+          harga: this.hitungTotalHarga(),
           tanggal_sewa: new Date(this.form.tanggal_sewa).toISOString(),
         });
         if (this.editId) {
