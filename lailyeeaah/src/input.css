@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-blush-50 text-ink font-sans antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blush-300 hover:bg-blush-400 text-white font-semibold rounded-full px-5 py-2.5 shadow-sm transition active:scale-95;
+  }
+  .btn-done {
+    @apply w-full bg-sage-300 hover:bg-sage-400 text-sage-700 font-semibold rounded-xl px-4 py-2.5 transition active:scale-95 flex items-center justify-center gap-2;
+  }
+  .tab-pill {
+    @apply px-6 py-2 rounded-full font-semibold text-sm transition;
+  }
+  .tab-pill-active {
+    @apply bg-blush-300 text-white shadow;
+  }
+  .tab-pill-inactive {
+    @apply bg-white text-blush-600 hover:bg-blush-100;
+  }
+  .card-rental {
+    @apply bg-white rounded-2xl shadow-sm border-l-4 p-5 animate-fade-in;
+  }
+  .input-field {
+    @apply w-full rounded-xl border border-blush-200 bg-blush-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blush-300 focus:border-blush-300;
+  }
+  .label-field {
+    @apply block text-xs font-semibold text-blush-600 mb-1;
+  }
+  .badge {
+    @apply text-[11px] font-bold px-2.5 py-1 rounded-full;
+  }
+}

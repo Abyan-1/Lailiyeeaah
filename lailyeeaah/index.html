@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lailyeeaah — Monitoring</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+  <script src="/js/app.js"></script>
+</head>
+<body x-data="monitoringPage()" x-cloak>
+  <style>[x-cloak]{display:none!important}</style>
+
+  <div class="max-w-5xl mx-auto px-4 pb-24 pt-8">
+    <!-- Heading -->
+    <header class="text-center mb-6">
+      <h1 class="font-script text-blush-600 text-[40px] md:text-[48px] leading-tight">Lailyeeaah</h1>
+      <p class="text-sm text-ink/60 mt-1">Monitoring sewa aplikasi 🌸</p>
+    </header>
+
+    <!-- Tab navigasi -->
+    <nav class="flex justify-center gap-2 mb-6">
+      <a href="/index.html" class="tab-pill tab-pill-active">Monitoring</a>
+      <a href="/riwayat.html" class="tab-pill tab-pill-inactive">Riwayat</a>
+      <button @click="logout()" class="tab-pill tab-pill-inactive !px-3" title="Keluar">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+      </button>
+    </nav>
+
+    <!-- Ringkasan -->
+    <section class="grid grid-cols-3 gap-3 mb-5">
+      <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-sage-700" x-text="ringkasan.aktif"></p>
+        <p class="text-xs text-ink/60">Aktif</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-peach-700" x-text="ringkasan.hampir"></p>
+        <p class="text-xs text-ink/60">Hampir habis</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-blush-600" x-text="ringkasan.habis"></p>
+        <p class="text-xs text-ink/60">Habis</p>
+      </div>
+    </section>
+
+    <!-- Pencarian, filter, tambah -->
+    <section class="flex flex-col sm:flex-row gap-3 mb-6">
+      <div class="relative flex-1">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-blush-400"></i>
+        <input type="text" x-model="search" placeholder="Cari nama pelanggan…" class="input-field !pl-10" />
+      </div>
+      <select x-model="filter" class="input-field sm:w-44">
+        <option value="semua">Semua status</option>
+        <option value="aktif">Aktif</option>
+        <option value="hampir">Hampir habis</option>
+        <option value="habis">Habis</option>
+      </select>
+      <button @click="bukaForm()" class="btn-primary whitespace-nowrap flex items-center justify-center gap-1.5">
+        <i data-lucide="plus" class="w-4 h-4"></i> Tambah Sewa
+      </button>
+    </section>
+
+    <!-- Loading -->
+    <p x-show="loading" class="text-center text-ink/50 py-10">Memuat data…</p>
+
+    <!-- Kosong -->
+    <div x-show="!loading && daftar.length === 0" class="text-center py-14 text-ink/50">
+      <p class="text-3xl mb-2">🌷</p>
+      <p>Belum ada sewa yang cocok. Tekan <b>+ Tambah Sewa</b> untuk mulai.</p>
+    </div>
+
+    <!-- Grid kartu pelanggan -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <template x-for="r in daftar" :key="r.id">
+        <article
+          class="card-rental"
+          :class="{
+            'border-sage-300': statusKartu(r) === 'aktif',
+            'border-peach-200': statusKartu(r) === 'hampir',
+            'border-blush-600 animate-pulse-soft': statusKartu(r) === 'habis'
+          }"
+        >
+          <!-- Nama + status + aksi -->
+          <div class="flex items-start justify-between gap-2 mb-1">
+            <div>
+              <h2 class="font-semibold text-ink leading-tight" x-text="r.nama"></h2>
+              <p class="text-xs text-ink/55 flex items-center gap-1 mt-0.5">
+                <i data-lucide="smartphone" class="w-3.5 h-3.5"></i><span x-text="r.device"></span>
+              </p>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="badge"
+                :class="{
+                  'bg-sage-200 text-sage-700': statusKartu(r) === 'aktif',
+                  'bg-peach-200 text-peach-700': statusKartu(r) === 'hampir',
+                  'bg-blush-600 text-white': statusKartu(r) === 'habis'
+                }"
+                x-text="statusKartu(r) === 'aktif' ? 'Aktif' : statusKartu(r) === 'hampir' ? 'Hampir habis' : 'HABIS'"></span>
+            </div>
+          </div>
+
+          <!-- Countdown besar -->
+          <p class="text-xl font-bold my-2"
+             :class="statusKartu(r) === 'habis' ? 'text-blush-600' : 'text-ink'"
+             x-text="countdown(r)"></p>
+
+          <!-- Progress bar -->
+          <div class="h-1.5 bg-blush-100 rounded-full overflow-hidden mb-3">
+            <div class="h-full rounded-full transition-all"
+                 :class="{
+                   'bg-sage-300': statusKartu(r) === 'aktif',
+                   'bg-peach-200': statusKartu(r) === 'hampir',
+                   'bg-blush-600': statusKartu(r) === 'habis'
+                 }"
+                 :style="`width:${progres(r)}%`"></div>
+          </div>
+
+          <!-- Detail -->
+          <dl class="text-xs text-ink/70 space-y-1 mb-4">
+            <div class="flex justify-between"><dt>Mulai</dt><dd x-text="fmtWIB(r.tanggal_sewa)"></dd></div>
+            <div class="flex justify-between"><dt>Berakhir</dt><dd x-text="fmtWIB(r.tanggal_berakhir)"></dd></div>
+            <div class="flex justify-between"><dt>Durasi</dt><dd x-text="`${r.durasi_nilai} ${r.durasi_satuan}`"></dd></div>
+            <div class="flex justify-between font-semibold text-ink"><dt>Harga</dt><dd x-text="fmtRupiah(r.harga)"></dd></div>
+            <div class="flex justify-between" x-show="statusKartu(r) === 'habis' && !r.notif_terkirim && (r.notif_percobaan || 0) >= 3">
+              <dt class="text-blush-600 font-semibold">⚠ Notif gagal</dt><dd></dd>
+            </div>
+          </dl>
+
+          <!-- Tombol -->
+          <button class="btn-done" @click="confirmDone = r">
+            <i data-lucide="check" class="w-4 h-4"></i> Done
+          </button>
+          <div class="flex gap-2 mt-2">
+            <button @click="bukaForm(r)" class="flex-1 text-xs text-blush-600 hover:bg-blush-100 rounded-lg py-1.5 flex items-center justify-center gap-1">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Edit
+            </button>
+            <button @click="confirmHapus = r" class="flex-1 text-xs text-ink/50 hover:bg-blush-100 rounded-lg py-1.5 flex items-center justify-center gap-1">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus
+            </button>
+          </div>
+        </article>
+      </template>
+    </section>
+  </div>
+
+  <!-- Modal form tambah/edit sewa -->
+  <div x-show="showForm" x-transition.opacity class="fixed inset-0 bg-ink/40 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4" @click.self="showForm = false">
+    <form @submit.prevent="simpan()" class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 max-h-[92vh] overflow-y-auto animate-fade-in">
+      <h2 class="font-script text-blush-600 text-2xl mb-4 text-center" x-text="editId ? 'Edit Sewa' : 'Tambah Sewa'"></h2>
+
+      <div class="space-y-3">
+        <div>
+          <label class="label-field">Nama pelanggan *</label>
+          <input type="text" x-model="form.nama" maxlength="50" required class="input-field" placeholder="mis. Laily" />
+        </div>
+        <div>
+          <label class="label-field">Nomor WhatsApp pelanggan (opsional)</label>
+          <input type="tel" x-model="form.no_wa" inputmode="numeric" pattern="[0-9]*" class="input-field" placeholder="628xxxxxxxxxx" />
+        </div>
+        <div>
+          <label class="label-field">Device *</label>
+          <input type="text" x-model="form.device" required list="device-list" class="input-field" placeholder="iPhone / Android / Laptop" />
+          <datalist id="device-list">
+            <option value="iPhone"></option>
+            <option value="Android"></option>
+            <option value="Laptop"></option>
+            <option value="iPad"></option>
+            <option value="TV"></option>
+          </datalist>
+        </div>
+        <div>
+          <label class="label-field">Tanggal sewa *</label>
+          <input type="datetime-local" x-model="form.tanggal_sewa" required class="input-field" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label-field">Durasi *</label>
+            <input type="number" min="1" x-model="form.durasi_nilai" required class="input-field" />
+          </div>
+          <div>
+            <label class="label-field">Satuan</label>
+            <select x-model="form.durasi_satuan" class="input-field">
+              <option value="hari">hari</option>
+              <option value="minggu">minggu</option>
+              <option value="bulan">bulan</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="label-field">Harga sewa (paket) *</label>
+          <select x-model="form.paket_harga_id" required class="input-field">
+            <option value="" disabled>Pilih paket harga…</option>
+            <template x-for="p in packages" :key="p.id">
+              <option :value="p.id" x-text="`${p.nama_paket} — ${fmtRupiah(p.harga)}`"></option>
+            </template>
+          </select>
+          <p class="text-[11px] text-ink/45 mt-1">Daftar paket bisa diubah lewat tabel <b>price_packages</b> di Supabase atau API /api/packages.</p>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button type="button" @click="showForm = false" class="flex-1 rounded-full py-2.5 text-sm font-semibold text-ink/60 bg-blush-100 hover:bg-blush-200">Batal</button>
+        <button type="submit" :disabled="saving" class="btn-primary flex-1" x-text="saving ? 'Menyimpan…' : 'Simpan'"></button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Konfirmasi Done -->
+  <div x-show="confirmDone" x-transition.opacity class="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4" @click.self="confirmDone = null">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-xs text-center animate-fade-in">
+      <p class="text-3xl mb-2">✅</p>
+      <p class="text-sm mb-1">Tandai sewa <b x-text="confirmDone?.nama"></b> sebagai <b>Selesai</b>?</p>
+      <p class="text-xs text-ink/50 mb-4">Kartu akan pindah ke halaman Riwayat.</p>
+      <div class="flex gap-3">
+        <button @click="confirmDone = null" class="flex-1 rounded-full py-2 text-sm bg-blush-100 text-ink/60">Batal</button>
+        <button @click="lakukanDone()" class="flex-1 rounded-full py-2 text-sm font-semibold bg-sage-300 text-sage-700">Ya, Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Konfirmasi hapus -->
+  <div x-show="confirmHapus" x-transition.opacity class="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4" @click.self="confirmHapus = null">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-xs text-center animate-fade-in">
+      <p class="text-3xl mb-2">🗑️</p>
+      <p class="text-sm mb-4">Hapus kartu <b x-text="confirmHapus?.nama"></b>? Data akan hilang permanen.</p>
+      <div class="flex gap-3">
+        <button @click="confirmHapus = null" class="flex-1 rounded-full py-2 text-sm bg-blush-100 text-ink/60">Batal</button>
+        <button @click="lakukanHapus()" class="flex-1 rounded-full py-2 text-sm font-semibold bg-blush-600 text-white">Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div x-show="toast" x-transition class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-sage-300 text-sage-700 text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg z-50" x-text="toast"></div>
+</body>
+</html>

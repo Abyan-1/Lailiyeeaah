@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lailyeeaah — Riwayat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+  <script src="/js/app.js"></script>
+</head>
+<body x-data="riwayatPage()" x-cloak>
+  <style>[x-cloak]{display:none!important}</style>
+
+  <div class="max-w-5xl mx-auto px-4 pb-24 pt-8">
+    <header class="text-center mb-6">
+      <h1 class="font-script text-blush-600 text-[40px] md:text-[48px] leading-tight">Lailyeeaah</h1>
+      <p class="text-sm text-ink/60 mt-1">Riwayat sewa selesai 📒</p>
+    </header>
+
+    <nav class="flex justify-center gap-2 mb-6">
+      <a href="/index.html" class="tab-pill tab-pill-inactive">Monitoring</a>
+      <a href="/riwayat.html" class="tab-pill tab-pill-active">Riwayat</a>
+      <button @click="logout()" class="tab-pill tab-pill-inactive !px-3" title="Keluar">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+      </button>
+    </nav>
+
+    <!-- Pencarian & filter bulan -->
+    <section class="flex flex-col sm:flex-row gap-3 mb-4">
+      <div class="relative flex-1">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-blush-400"></i>
+        <input type="text" x-model="search" placeholder="Cari nama pelanggan…" class="input-field !pl-10" />
+      </div>
+      <input type="month" x-model="bulan" class="input-field sm:w-48" />
+      <button x-show="bulan" @click="bulan = ''" class="text-xs text-blush-600 underline sm:w-auto">Reset bulan</button>
+    </section>
+
+    <!-- Total pendapatan -->
+    <section class="bg-white rounded-2xl shadow-sm p-4 mb-5 flex items-center justify-between">
+      <div>
+        <p class="text-xs text-ink/60">Total pendapatan <span x-show="bulan" x-text="`(${bulan})`"></span><span x-show="!bulan">(semua)</span></p>
+        <p class="text-2xl font-bold text-sage-700" x-text="fmtRupiah(totalPendapatan)"></p>
+      </div>
+      <p class="text-xs text-ink/50"><span x-text="daftar.length"></span> sewa selesai</p>
+    </section>
+
+    <p x-show="loading" class="text-center text-ink/50 py-10">Memuat data…</p>
+
+    <div x-show="!loading && daftar.length === 0" class="text-center py-14 text-ink/50">
+      <p class="text-3xl mb-2">🌼</p>
+      <p>Belum ada riwayat yang cocok.</p>
+    </div>
+
+    <!-- Daftar riwayat: kartu di HP, tabel di layar lebar -->
+    <section x-show="daftar.length > 0">
+      <!-- Mobile: kartu -->
+      <div class="space-y-3 md:hidden">
+        <template x-for="r in daftar" :key="r.id">
+          <article class="bg-white rounded-2xl shadow-sm p-4 animate-fade-in">
+            <div class="flex justify-between items-start mb-1">
+              <div>
+                <h2 class="font-semibold" x-text="r.nama"></h2>
+                <p class="text-xs text-ink/55" x-text="r.device"></p>
+              </div>
+              <span class="badge" :class="statusNotif(r).cls" x-text="'WA: ' + statusNotif(r).label"></span>
+            </div>
+            <dl class="text-xs text-ink/70 space-y-1 mt-2">
+              <div class="flex justify-between"><dt>Mulai</dt><dd x-text="fmtWIB(r.tanggal_sewa)"></dd></div>
+              <div class="flex justify-between"><dt>Berakhir</dt><dd x-text="fmtWIB(r.tanggal_berakhir)"></dd></div>
+              <div class="flex justify-between"><dt>Durasi</dt><dd x-text="`${r.durasi_nilai} ${r.durasi_satuan}`"></dd></div>
+              <div class="flex justify-between"><dt>Done pada</dt><dd x-text="fmtWIB(r.selesai_pada)"></dd></div>
+              <div class="flex justify-between font-semibold text-ink"><dt>Harga</dt><dd x-text="fmtRupiah(r.harga)"></dd></div>
+            </dl>
+            <button @click="sewaLagi(r)" class="mt-3 w-full text-sm font-semibold bg-blush-300 hover:bg-blush-400 text-white rounded-xl py-2 flex items-center justify-center gap-1.5">
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Sewa lagi
+            </button>
+          </article>
+        </template>
+      </div>
+
+      <!-- Desktop: tabel -->
+      <div class="hidden md:block bg-white rounded-2xl shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-blush-100 text-blush-600 text-left text-xs uppercase">
+              <th class="px-4 py-3">Nama</th>
+              <th class="px-4 py-3">Device</th>
+              <th class="px-4 py-3">Mulai</th>
+              <th class="px-4 py-3">Berakhir</th>
+              <th class="px-4 py-3">Durasi</th>
+              <th class="px-4 py-3">Harga</th>
+              <th class="px-4 py-3">Done pada</th>
+              <th class="px-4 py-3">Notif WA</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="r in daftar" :key="r.id">
+              <tr class="border-t border-blush-100 hover:bg-blush-50">
+                <td class="px-4 py-3 font-semibold" x-text="r.nama"></td>
+                <td class="px-4 py-3" x-text="r.device"></td>
+                <td class="px-4 py-3 text-xs" x-text="fmtWIB(r.tanggal_sewa)"></td>
+                <td class="px-4 py-3 text-xs" x-text="fmtWIB(r.tanggal_berakhir)"></td>
+                <td class="px-4 py-3" x-text="`${r.durasi_nilai} ${r.durasi_satuan}`"></td>
+                <td class="px-4 py-3 font-semibold" x-text="fmtRupiah(r.harga)"></td>
+                <td class="px-4 py-3 text-xs" x-text="fmtWIB(r.selesai_pada)"></td>
+                <td class="px-4 py-3"><span class="badge" :class="statusNotif(r).cls" x-text="statusNotif(r).label"></span></td>
+                <td class="px-4 py-3">
+                  <button @click="sewaLagi(r)" class="text-xs font-semibold text-blush-600 hover:underline whitespace-nowrap">Sewa lagi</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lailyeeaah — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="/js/app.js"></script>
+</head>
+<body x-data="loginPage()" x-cloak class="min-h-screen flex items-center justify-center px-4">
+  <style>[x-cloak]{display:none!important}</style>
+
+  <form @submit.prevent="masuk()" class="bg-white rounded-3xl shadow-sm p-8 w-full max-w-sm text-center animate-fade-in">
+    <h1 class="font-script text-blush-600 text-[40px] leading-tight mb-1">Lailyeeaah</h1>
+    <p class="text-sm text-ink/60 mb-6">Masuk sebagai admin 🌸</p>
+
+    <input
+      type="password"
+      x-model="password"
+      required
+      autofocus
+      placeholder="Password admin"
+      class="input-field text-center mb-3"
+    />
+
+    <p x-show="error" class="text-xs text-blush-600 mb-3" x-text="error"></p>
+
+    <button type="submit" :disabled="loading" class="btn-primary w-full" x-text="loading ? 'Memeriksa…' : 'Masuk'"></button>
+  </form>
+</body>
+</html>
