@@ -18,9 +18,10 @@ create table if not exists public.rentals (
   id uuid primary key default gen_random_uuid(),
   nama text not null check (char_length(nama) <= 50),
   no_wa text,                                   -- format 628xxxxxxxxxx, boleh null
+  email_pelanggan text,                         -- email pembeli/pelanggan, boleh null
   device text not null,
   tipe_akun text,                               -- pro_sharing / pro_privat / max_sharing / max_privat
-  email_akun text,                              -- akun email yang digunakan
+  email_akun text,                              -- akun email Claude yang digunakan
   tanggal_sewa timestamptz not null,
   durasi_nilai integer not null check (durasi_nilai >= 1),
   durasi_satuan text not null check (durasi_satuan in ('hari','minggu','bulan','tahun')),

@@ -83,8 +83,9 @@ function buatPesan(r) {
     "📢 SEWA HABIS — Lailyeeaah",
     `Nama   : ${r.nama}`,
   ];
-  if (r.tipe_akun) baris.push(`Tipe   : ${formatTipeAkun(r.tipe_akun)}`);
-  if (r.email_akun) baris.push(`Email  : ${r.email_akun}`);
+  if (r.tipe_akun) baris.push(`Layanan: ${formatTipeAkun(r.tipe_akun)}`);
+  if (r.email_akun) baris.push(`Akun   : ${r.email_akun}`);
+  if (r.email_pelanggan) baris.push(`Email  : ${r.email_pelanggan}`);
   baris.push(
     `Device : ${r.device}`,
     `Mulai  : ${formatWIB(r.tanggal_sewa)}`,

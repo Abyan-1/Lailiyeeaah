@@ -57,6 +57,7 @@ module.exports = async (req, res) => {
         .insert({
           nama: String(b.nama).trim().slice(0, 50),
           no_wa: b.no_wa ? String(b.no_wa).replace(/\D/g, "") : null,
+          email_pelanggan: b.email_pelanggan ? String(b.email_pelanggan).trim() : null,
           device: String(b.device).trim(),
           tipe_akun: b.tipe_akun || null,
           email_akun: b.email_akun ? String(b.email_akun).trim() : null,
@@ -109,6 +110,7 @@ module.exports = async (req, res) => {
       const update = {
         nama: String(b.nama).trim().slice(0, 50),
         no_wa: b.no_wa ? String(b.no_wa).replace(/\D/g, "") : null,
+        email_pelanggan: b.email_pelanggan ? String(b.email_pelanggan).trim() : null,
         device: String(b.device).trim(),
         tipe_akun: b.tipe_akun || null,
         email_akun: b.email_akun ? String(b.email_akun).trim() : null,

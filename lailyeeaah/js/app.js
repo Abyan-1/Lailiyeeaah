@@ -93,6 +93,7 @@ function monitoringPage() {
         this.bukaForm();
         this.form.nama = d.nama || "";
         this.form.no_wa = d.no_wa || "";
+        this.form.email_pelanggan = d.email_pelanggan || "";
         this.form.device = d.device || "";
         if (d.tipe_akun) this.form.tipe_akun = d.tipe_akun;
         if (d.email_akun) this.form.email_akun = d.email_akun;
@@ -152,7 +153,9 @@ function monitoringPage() {
       return this.rentals
         .filter((r) => {
           const s = this.search.toLowerCase();
-          const cocokNama = r.nama.toLowerCase().includes(s) || (r.email_akun && r.email_akun.toLowerCase().includes(s));
+          const cocokNama = r.nama.toLowerCase().includes(s) ||
+            (r.email_akun && r.email_akun.toLowerCase().includes(s)) ||
+            (r.email_pelanggan && r.email_pelanggan.toLowerCase().includes(s));
           const st = this.statusKartu(r);
           const cocokFilter = this.filter === "semua" || st === this.filter;
           return cocokNama && cocokFilter;
@@ -164,50 +167,29 @@ function monitoringPage() {
     getPaketSatuan,
     formatTipeAkun,
     get filteredPackages() {
-      if (!this.form.durasi_satuan) return this.packages;
-      return this.packages.filter((p) => this.getPaketSatuan(p) === this.form.durasi_satuan);
+      if (!this.form.tipe_akun) return this.packages;
+      const cocok = this.packages.filter((p) => {
+        if (p.tipe_akun) return p.tipe_akun === this.form.tipe_akun;
+        const nama = (p.nama_paket || "").toLowerCase();
+        if (this.form.tipe_akun === "pro_sharing") return nama.includes("pro") && !nama.includes("privat");
+        if (this.form.tipe_akun === "max_sharing") return nama.includes("max") && !nama.includes("privat");
+        if (this.form.tipe_akun === "pro_privat") return nama.includes("pro") && nama.includes("privat");
+        if (this.form.tipe_akun === "max_privat") return nama.includes("max") && nama.includes("privat");
+        return true;
+      });
+      return cocok.length > 0 ? cocok : [];
     },
     onTipeAkunChange() {
-      if (this.form.tipe_akun === "pro_privat" || this.form.tipe_akun === "max_privat") {
-        this.form.durasi_satuan = "bulan";
-        this.form.durasi_nilai = 1;
-      } else if (this.form.tipe_akun === "pro_sharing" || this.form.tipe_akun === "max_sharing") {
-        if (this.form.durasi_satuan === "bulan" || this.form.durasi_satuan === "tahun") {
-          this.form.durasi_satuan = "hari";
-          this.form.durasi_nilai = 1;
-        }
+      const paketTersedia = this.filteredPackages;
+      if (paketTersedia.length > 0) {
+        this.form.paket_harga_id = paketTersedia[0].id;
+        this.sesuaikanDurasiDariPaket(paketTersedia[0]);
+      } else {
+        this.form.paket_harga_id = "";
       }
-      this.sinkronkanPaket();
     },
     onSatuanChange() {
-      this.sinkronkanPaket();
-    },
-    sinkronkanPaket() {
-      const cocok = this.filteredPackages;
-      if (cocok.length === 0) {
-        this.form.paket_harga_id = "";
-        return;
-      }
-      if (cocok.some((p) => p.id === this.form.paket_harga_id)) {
-        return;
-      }
-      let terpilih = null;
-      const tipe = this.form.tipe_akun;
-      const satuan = this.form.durasi_satuan;
-
-      if (tipe === "pro_sharing") {
-        if (satuan === "hari") terpilih = cocok.find((p) => p.harga === 35000);
-        else if (satuan === "minggu") terpilih = cocok.find((p) => p.harga === 150000);
-      } else if (tipe === "max_sharing") {
-        if (satuan === "hari") terpilih = cocok.find((p) => p.harga === 45000);
-        else if (satuan === "minggu") terpilih = cocok.find((p) => p.harga === 250000);
-      } else if (tipe === "pro_privat") {
-        if (satuan === "bulan") terpilih = cocok.find((p) => p.harga === 300000 || p.harga === 290000);
-      } else if (tipe === "max_privat") {
-        if (satuan === "bulan") terpilih = cocok.find((p) => p.harga === 1000000);
-      }
-
-      this.form.paket_harga_id = terpilih ? terpilih.id : cocok[0].id;
+      // Satuan durasi diganti manual
     },
     onPaketChange() {
       const p = this.packages.find((x) => x.id === this.form.paket_harga_id);
@@ -215,11 +197,17 @@ function monitoringPage() {
     },
     sesuaikanDurasiDariPaket(p) {
       if (!p) return;
+      const s = this.getPaketSatuan(p);
+      if (s && s !== "lainnya") {
+        this.form.durasi_satuan = s;
+      }
       const nama = (p.nama_paket || "").toLowerCase();
-      const match = nama.match(/(\d+)\s*(hari|minggu|bulan|tahun)/i);
+      const match = nama.match(/(\d+)\s*(hari|minggu|bulan)/i);
       if (match) {
         const val = parseInt(match[1], 10);
         if (val >= 1) this.form.durasi_nilai = val;
+      } else {
+        this.form.durasi_nilai = 1;
       }
     },
     hitungTotalHarga() {
@@ -239,9 +227,6 @@ function monitoringPage() {
       if (satuan === "bulan" && (nama.includes("1 bulan") || (nama.includes("bulan") && !nama.match(/[2-9]\d*\s*bulan/)))) {
         return baseHarga * n;
       }
-      if (satuan === "tahun" && (nama.includes("1 tahun") || (nama.includes("tahun") && !nama.match(/[2-9]\d*\s*tahun/)))) {
-        return baseHarga * n;
-      }
       return baseHarga;
     },
 
@@ -254,6 +239,7 @@ function monitoringPage() {
         this.form = {
           nama: r.nama,
           no_wa: r.no_wa || "",
+          email_pelanggan: r.email_pelanggan || "",
           device: r.device,
           tipe_akun: r.tipe_akun || "pro_sharing",
           email_akun: r.email_akun || "",
@@ -332,6 +318,7 @@ function monitoringPage() {
     return {
       nama: "",
       no_wa: "",
+      email_pelanggan: "",
       device: "",
       tipe_akun: "pro_sharing",
       email_akun: "",
@@ -388,6 +375,7 @@ function riwayatPage() {
         JSON.stringify({
           nama: r.nama,
           no_wa: r.no_wa,
+          email_pelanggan: r.email_pelanggan,
           device: r.device,
           tipe_akun: r.tipe_akun,
           email_akun: r.email_akun,
