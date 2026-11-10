@@ -8,10 +8,15 @@ const { getSupabase, formatWIB, formatRupiah, formatTipeAkun } = require("../lib
 const MAX_PERCOBAAN = 3;
 
 module.exports = async (req, res) => {
-  // Lindungi endpoint dengan secret key
+  // Lindungi endpoint:
+  // - Vercel Cron memanggil dengan header "x-vercel-cron: 1" (otomatis, aman)
+  // - Panggilan manual pakai ?key=CRON_SECRET
+  const isVercelCron = req.headers["x-vercel-cron"] === "1";
   const key = req.query.key || req.headers["x-cron-key"];
-  if (!process.env.CRON_SECRET || key !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: "Secret key salah" });
+  const keyValid = process.env.CRON_SECRET && key === process.env.CRON_SECRET;
+
+  if (!isVercelCron && !keyValid) {
+    return res.status(401).json({ error: "Akses tidak diizinkan" });
   }
   if (!process.env.FONNTE_TOKEN || !process.env.ADMIN_WA_NUMBER) {
     return res.status(500).json({ error: "FONNTE_TOKEN / ADMIN_WA_NUMBER belum diset" });
