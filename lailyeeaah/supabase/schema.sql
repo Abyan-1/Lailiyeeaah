@@ -51,14 +51,16 @@ alter table public.price_packages enable row level security;
 
 -- ===================== Seed paket harga awal (silakan ubah) =====================
 insert into public.price_packages (nama_paket, tipe_akun, harga) values
-  ('1 Hari (Pro Sharing)', 'pro_sharing', 35000),
-  ('1 Hari (Max Sharing)', 'max_sharing', 45000),
-  ('1 Minggu', 'pro_sharing', 150000),
-  ('1 Minggu', 'pro_sharing', 180000),
-  ('1 Minggu', 'max_sharing', 250000),
-  ('1 Bulan', 'pro_privat', 250000),
-  ('1 Bulan', 'pro_privat', 285000),
-  ('1 Bulan', 'pro_privat', 290000),
-  ('1 Bulan', 'pro_privat', 300000),
-  ('1 Bulan (Max Privat)', 'max_privat', 1000000)
+  -- Harian
+  ('1 Hari (Pro Sharing)',  'pro_sharing', 35000),
+  ('1 Hari (Max Sharing)',  'max_sharing', 45000),
+  -- Mingguan
+  ('1 Minggu',              'pro_sharing', 150000),
+  ('1 Minggu',              'pro_sharing', 180000),
+  ('1 Minggu',              'max_sharing', 250000),
+  -- Bulanan
+  ('1 Bulan',               'pro_privat',  250000),
+  ('1 Bulan',               'pro_privat',  285000),
+  ('1 Bulan',               'pro_privat',  290000),
+  ('1 Bulan (Max Privat)',  'max_privat',  1000000)
 on conflict do nothing;
