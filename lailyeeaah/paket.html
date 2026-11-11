@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lailyeeaah — Kelola Paket Harga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css?v=3" />
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+  <script src="/js/app.js?v=3"></script>
+</head>
+<body x-data="paketPage()" x-cloak>
+  <style>[x-cloak]{display:none!important}</style>
+
+  <div class="max-w-2xl mx-auto px-4 pb-24 pt-8">
+    <header class="text-center mb-6">
+      <h1 class="font-script text-blush-600 text-[40px] leading-tight">Lailyeeaah</h1>
+      <p class="text-sm text-ink/60 mt-1">Kelola Paket Harga 💰</p>
+    </header>
+
+    <!-- Tab navigasi -->
+    <nav class="flex justify-center items-center gap-2 mb-6 flex-wrap">
+      <a href="/index.html" class="tab-pill tab-pill-inactive">Monitoring</a>
+      <a href="/riwayat.html" class="tab-pill tab-pill-inactive">Riwayat</a>
+      <a href="/paket.html" class="tab-pill tab-pill-active">Paket Harga</a>
+      <button @click="logout()" class="tab-pill tab-pill-inactive flex items-center gap-1.5" title="Keluar">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blush-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Keluar</span>
+      </button>
+    </nav>
+
+    <!-- Tombol Tambah Paket -->
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-sm font-semibold text-ink/60">Daftar Paket Aktif</h2>
+      <button @click="bukaFormTambah()" class="btn-primary text-sm px-4 py-2 flex items-center gap-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Tambah Paket
+      </button>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" class="text-center py-12 text-ink/40 text-sm">Memuat paket…</div>
+
+    <!-- Error -->
+    <div x-show="errMsg" class="bg-red-50 border border-red-200 text-red-600 rounded-2xl p-4 text-sm mb-4" x-text="errMsg"></div>
+
+    <!-- Grup per tipe akun -->
+    <template x-for="tipe in tipeList" :key="tipe.value">
+      <div class="mb-5">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+            :class="{
+              'bg-blush-100 text-blush-700': tipe.value === 'pro_sharing',
+              'bg-sage-100 text-sage-700': tipe.value === 'pro_privat',
+              'bg-peach-100 text-peach-700': tipe.value === 'max_sharing',
+              'bg-purple-100 text-purple-700': tipe.value === 'max_privat',
+            }"
+            x-text="tipe.label"></span>
+          <span class="text-xs text-ink/40" x-text="`(${paketByTipe(tipe.value).length} paket)`"></span>
+        </div>
+
+        <!-- Jika tidak ada paket -->
+        <div x-show="paketByTipe(tipe.value).length === 0" class="text-xs text-ink/30 italic ml-2">Belum ada paket</div>
+
+        <div class="space-y-2">
+          <template x-for="p in paketByTipe(tipe.value)" :key="p.id">
+            <div class="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-ink" x-text="p.nama_paket"></p>
+                <p class="text-xs text-ink/50 mt-0.5">
+                  <span class="font-bold text-blush-600" x-text="fmtRupiah(p.harga)"></span>
+                  <span x-show="!p.aktif" class="ml-2 text-red-400 font-medium">(nonaktif)</span>
+                </p>
+              </div>
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                <!-- Tombol Edit -->
+                <button @click="bukaFormEdit(p)"
+                  class="w-8 h-8 rounded-full bg-blush-50 hover:bg-blush-100 flex items-center justify-center transition-colors"
+                  title="Edit paket">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blush-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <!-- Tombol Hapus (nonaktifkan) -->
+                <button @click="hapusPaket(p)"
+                  class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors"
+                  title="Nonaktifkan paket">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Modal Form Tambah / Edit Paket -->
+  <div x-show="showForm" x-transition.opacity
+    class="fixed inset-0 bg-ink/40 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4"
+    @click.self="showForm = false">
+    <form @submit.prevent="simpan()"
+      class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 animate-fade-in">
+      <h2 class="font-script text-blush-600 text-2xl mb-4 text-center"
+        x-text="editId ? 'Edit Paket' : 'Tambah Paket'"></h2>
+
+      <div class="space-y-3">
+        <!-- Jenis Akun -->
+        <div>
+          <label class="label-field font-bold text-blush-700">Jenis Akun *</label>
+          <select x-model="form.tipe_akun" required class="input-field font-medium">
+            <option value="pro_sharing">Pro Sharing</option>
+            <option value="pro_privat">Pro Privat</option>
+            <option value="max_sharing">Max Sharing</option>
+            <option value="max_privat">Max Privat</option>
+          </select>
+        </div>
+
+        <!-- Nama Paket -->
+        <div>
+          <label class="label-field">Nama Paket *
+            <span class="text-ink/40 font-normal text-[11px] ml-1">mis. "1 Hari (Pro Sharing)"</span>
+          </label>
+          <input type="text" x-model="form.nama_paket" required class="input-field"
+            placeholder="mis. 1 Minggu" />
+          <p class="text-[11px] text-ink/40 mt-1">
+            Nama harus mengandung kata <b>hari</b>, <b>minggu</b>, atau <b>bulan</b> agar satuan otomatis terkunci.
+          </p>
+        </div>
+
+        <!-- Harga -->
+        <div>
+          <label class="label-field">Harga (Rp) *</label>
+          <input type="number" x-model="form.harga" min="0" step="1000" required class="input-field"
+            placeholder="mis. 150000" />
+          <p class="text-xs text-blush-600 font-semibold mt-1"
+            x-show="form.harga"
+            x-text="'= ' + fmtRupiah(parseInt(form.harga) || 0)"></p>
+        </div>
+      </div>
+
+      <!-- Error simpan -->
+      <p x-show="saveErr" class="text-red-500 text-xs mt-3" x-text="saveErr"></p>
+
+      <div class="flex gap-3 mt-5">
+        <button type="button" @click="showForm = false"
+          class="flex-1 rounded-full py-2.5 text-sm font-semibold text-ink/60 bg-blush-100 hover:bg-blush-200">
+          Batal
+        </button>
+        <button type="submit" :disabled="saving" class="btn-primary flex-1"
+          x-text="saving ? 'Menyimpan…' : (editId ? 'Simpan Perubahan' : 'Tambah Paket')">
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Konfirmasi Hapus -->
+  <div x-show="confirmHapus" x-transition.opacity
+    class="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4"
+    @click.self="confirmHapus = null">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-xs text-center animate-fade-in shadow-xl">
+      <p class="text-sm text-ink/70 mb-1">Nonaktifkan paket</p>
+      <p class="font-semibold text-ink mb-4" x-text="`"${confirmHapus?.nama_paket}"?`"></p>
+      <p class="text-xs text-ink/50 mb-5">Paket tidak akan muncul di dropdown sewa. Data riwayat sewa tetap aman.</p>
+      <div class="flex gap-3">
+        <button @click="confirmHapus = null"
+          class="flex-1 rounded-full py-2 text-sm font-semibold text-ink/60 bg-blush-100 hover:bg-blush-200">
+          Batal
+        </button>
+        <button @click="konfirmasiHapus()"
+          class="flex-1 rounded-full py-2 text-sm font-semibold text-white bg-red-400 hover:bg-red-500">
+          Nonaktifkan
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

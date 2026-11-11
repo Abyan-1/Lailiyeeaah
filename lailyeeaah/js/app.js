@@ -401,6 +401,111 @@ function riwayatPage() {
   };
 }
 
+// ====================== HALAMAN PAKET HARGA ======================
+function paketPage() {
+  return {
+    packages: [],
+    loading: true,
+    errMsg: "",
+    showForm: false,
+    saving: false,
+    saveErr: "",
+    editId: null,
+    confirmHapus: null,
+    form: { nama_paket: "", harga: "", tipe_akun: "pro_sharing" },
+
+    tipeList: [
+      { value: "pro_sharing", label: "Pro Sharing" },
+      { value: "pro_privat",  label: "Pro Privat"  },
+      { value: "max_sharing", label: "Max Sharing" },
+      { value: "max_privat",  label: "Max Privat"  },
+    ],
+
+    async init() {
+      await this.muat();
+      lucide.createIcons();
+    },
+
+    async muat() {
+      this.loading = true;
+      this.errMsg = "";
+      try {
+        const { data } = await api("/api/packages?all=1");
+        this.packages = (data || []).filter((p) => p.aktif);
+      } catch (e) {
+        this.errMsg = e.message || "Gagal memuat paket";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    paketByTipe(tipe) {
+      return this.packages.filter((p) => p.tipe_akun === tipe);
+    },
+
+    bukaFormTambah() {
+      this.editId = null;
+      this.form = { nama_paket: "", harga: "", tipe_akun: "pro_sharing" };
+      this.saveErr = "";
+      this.showForm = true;
+    },
+
+    bukaFormEdit(p) {
+      this.editId = p.id;
+      this.form = { nama_paket: p.nama_paket, harga: p.harga, tipe_akun: p.tipe_akun || "pro_sharing" };
+      this.saveErr = "";
+      this.showForm = true;
+    },
+
+    async simpan() {
+      this.saving = true;
+      this.saveErr = "";
+      try {
+        const body = {
+          nama_paket: String(this.form.nama_paket).trim(),
+          harga: parseInt(this.form.harga, 10),
+          tipe_akun: this.form.tipe_akun,
+        };
+        if (this.editId) {
+          await api(`/api/packages?id=${this.editId}`, {
+            method: "PUT",
+            body: JSON.stringify(body),
+          });
+        } else {
+          await api("/api/packages", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+        }
+        this.showForm = false;
+        await this.muat();
+      } catch (e) {
+        this.saveErr = e.message || "Gagal menyimpan";
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    hapusPaket(p) {
+      this.confirmHapus = p;
+    },
+
+    async konfirmasiHapus() {
+      if (!this.confirmHapus) return;
+      try {
+        await api(`/api/packages?id=${this.confirmHapus.id}`, { method: "DELETE" });
+        this.confirmHapus = null;
+        await this.muat();
+      } catch (e) {
+        alert("Gagal menghapus: " + e.message);
+      }
+    },
+
+    fmtRupiah,
+    logout,
+  };
+}
+
 // ====================== HALAMAN LOGIN ======================
 function loginPage() {
   return {
