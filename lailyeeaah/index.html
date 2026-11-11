@@ -7,10 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=2" />
+  <link rel="stylesheet" href="/css/style.css?v=3" />
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
   <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
-  <script src="/js/app.js?v=2"></script>
+  <script src="/js/app.js?v=3"></script>
 </head>
 <body x-data="monitoringPage()" x-cloak>
   <style>[x-cloak]{display:none!important}</style>
@@ -142,8 +142,11 @@
             <div class="flex justify-between"><dt>Berakhir</dt><dd x-text="fmtWIB(r.tanggal_berakhir)"></dd></div>
             <div class="flex justify-between"><dt>Durasi</dt><dd x-text="`${r.durasi_nilai} ${r.durasi_satuan}`"></dd></div>
             <div class="flex justify-between font-semibold text-ink"><dt>Harga</dt><dd x-text="fmtRupiah(r.harga)"></dd></div>
-            <div class="flex justify-between" x-show="statusKartu(r) === 'habis' && !r.notif_terkirim && (r.notif_percobaan || 0) >= 3">
-              <dt class="text-blush-600 font-semibold">⚠ Notif gagal</dt><dd></dd>
+            <div class="flex justify-between" x-show="(r.notif_percobaan || 0) >= 3">
+              <dt class="text-blush-600 font-semibold">⚠ Notif gagal</dt><dd class="text-[11px] truncate max-w-[170px] text-blush-600" :title="r.notif_error" x-text="r.notif_error || ''"></dd>
+            </div>
+            <div class="flex justify-between" x-show="r.notif_peringatan_terkirim || r.notif_terkirim">
+              <dt>Notif WA admin</dt><dd class="font-medium text-sage-700" x-text="r.notif_terkirim ? 'Habis ✓' : 'Peringatan ✓'"></dd>
             </div>
           </dl>
 
@@ -230,6 +233,7 @@
               <option value="hari">hari</option>
               <option value="minggu">minggu</option>
               <option value="bulan">bulan</option>
+              <option value="tahun">tahun</option>
             </select>
           </div>
         </div>

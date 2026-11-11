@@ -202,7 +202,7 @@ function monitoringPage() {
         this.form.durasi_satuan = s;
       }
       const nama = (p.nama_paket || "").toLowerCase();
-      const match = nama.match(/(\d+)\s*(hari|minggu|bulan)/i);
+      const match = nama.match(/(\d+)\s*(hari|minggu|bulan|tahun)/i);
       if (match) {
         const val = parseInt(match[1], 10);
         if (val >= 1) this.form.durasi_nilai = val;
@@ -366,7 +366,7 @@ function riwayatPage() {
     },
     statusNotif(r) {
       if (r.notif_terkirim) return { label: "Terkirim", cls: "bg-sage-200 text-sage-700" };
-      if ((r.notif_percobaan || 0) > 0) return { label: "Gagal", cls: "bg-blush-200 text-blush-700" };
+      if ((r.notif_percobaan || 0) > 0 || r.notif_error) return { label: "Gagal", cls: "bg-blush-200 text-blush-700" };
       return { label: "—", cls: "bg-blush-100 text-ink/50" };
     },
     sewaLagi(r) {

@@ -29,9 +29,12 @@ create table if not exists public.rentals (
   paket_harga_id uuid references public.price_packages (id),
   harga integer not null,                       -- disalin dari paket saat transaksi
   status text not null default 'aktif' check (status in ('aktif','selesai')),
-  notif_terkirim boolean not null default false,
+  notif_peringatan_terkirim boolean not null default false, -- WA "hampir habis" ke admin
+  notif_peringatan_pada timestamptz,
+  notif_terkirim boolean not null default false,            -- WA "sewa habis" ke admin
   notif_dikirim_pada timestamptz,
-  notif_percobaan integer not null default 0,
+  notif_percobaan integer not null default 0,               -- jumlah gagal berturut-turut
+  notif_error text,                                         -- alasan gagal terakhir dari Fonnte
   selesai_pada timestamptz,
   created_at timestamptz not null default now()
 );

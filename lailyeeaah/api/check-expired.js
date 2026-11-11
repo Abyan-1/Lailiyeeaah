@@ -1,125 +1,76 @@
 // GET /api/check-expired?key=<CRON_SECRET>
-// Dipanggil cron-job.org setiap 5 menit.
-// Mencari sewa aktif yang sudah habis & belum dinotif, lalu kirim WA via Fonnte.
-// - Berhasil → notif_terkirim = true + waktu kirim disimpan (tidak akan dobel)
-// - Gagal    → notif_percobaan + 1, dicoba lagi di putaran berikutnya (maks 3x)
-const { getSupabase, formatWIB, formatRupiah, formatTipeAkun } = require("../lib/util");
-
-const MAX_PERCOBAAN = 3;
+// Dipanggil cron-job.org setiap 5 menit. Notif HANYA dikirim ke WA admin, dua tahap:
+//   1. PERINGATAN  — sewa akan habis dalam PERINGATAN_MENIT (default 10 menit)
+//   2. HABIS       — sewa sudah melewati tanggal_berakhir
+// Masing-masing hanya terkirim sekali (ditandai di database).
+// Jika Fonnte gagal, akan dicoba lagi tiap putaran sampai berhasil; alasan gagal
+// disimpan di kolom notif_error dan kartu diberi tanda "Notif gagal".
+const { getSupabase } = require("../lib/util");
+const { env, cekKonfigurasi, peringatanMenit, buatPesan, kirimKeAdmin } = require("../lib/notif");
 
 module.exports = async (req, res) => {
-  // Lindungi endpoint:
-  // - Vercel Cron memanggil dengan header "x-vercel-cron: 1" (otomatis, aman)
-  // - Panggilan manual pakai ?key=CRON_SECRET
-  const isVercelCron = req.headers["x-vercel-cron"] === "1";
-  const key = req.query.key || req.headers["x-cron-key"];
-  const keyValid = process.env.CRON_SECRET && key === process.env.CRON_SECRET;
-
-  if (!isVercelCron && !keyValid) {
-    return res.status(401).json({ error: "Akses tidak diizinkan" });
-  }
-  if (!process.env.FONNTE_TOKEN || !process.env.ADMIN_WA_NUMBER) {
-    return res.status(500).json({ error: "FONNTE_TOKEN / ADMIN_WA_NUMBER belum diset" });
+  const auth = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  const key = req.query.key || auth;
+  if (!env("CRON_SECRET") || key !== env("CRON_SECRET")) {
+    return res.status(401).json({ error: "Secret key salah / CRON_SECRET belum diset" });
   }
 
-  let supabase;
-  try {
-    supabase = getSupabase();
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
+  const masalah = cekKonfigurasi();
+  if (masalah.length) return res.status(500).json({ error: "Konfigurasi belum lengkap", masalah });
 
+  const supabase = getSupabase();
   const now = new Date();
-  // Kirim notifikasi jika sewa akan habis dalam 10 menit (atau sudah habis)
-  const triggerTime = new Date(now.getTime() + 10 * 60 * 1000);
-  const hasil = { dicek_pada: now.toISOString(), terkirim: 0, gagal: 0, detail: [] };
+  const batasPeringatan = new Date(now.getTime() + peringatanMenit() * 60000);
+  const hasil = {
+    dicek_pada: now.toISOString(),
+    peringatan_menit: peringatanMenit(),
+    terkirim: 0,
+    gagal: 0,
+    detail: [],
+  };
 
   try {
-    const { data: expired, error } = await supabase
+    // Semua sewa aktif yang habis sebelum batas peringatan & masih ada notif yang belum terkirim
+    const { data, error } = await supabase
       .from("rentals")
       .select("*")
       .eq("status", "aktif")
       .eq("notif_terkirim", false)
-      .lt("notif_percobaan", MAX_PERCOBAAN)
-      .lte("tanggal_berakhir", triggerTime.toISOString());
+      .lte("tanggal_berakhir", batasPeringatan.toISOString())
+      .order("tanggal_berakhir", { ascending: true });
     if (error) throw error;
 
-    for (const r of expired || []) {
-      const pesan = buatPesan(r);
+    for (const r of data || []) {
+      const sudahHabis = new Date(r.tanggal_berakhir) <= now;
+      let jenis = null;
+      if (sudahHabis) jenis = "habis";
+      else if (!r.notif_peringatan_terkirim) jenis = "peringatan";
+      if (!jenis) continue; // peringatan sudah terkirim, tunggu sampai benar-benar habis
 
-      // Penerima: admin selalu; pelanggan ikut jika punya nomor WA
-      const target = [process.env.ADMIN_WA_NUMBER, r.no_wa].filter(Boolean).join(",");
-
-      const sukses = await kirimFonnte(target, pesan);
-
-      if (sukses) {
-        await supabase
-          .from("rentals")
-          .update({
-            notif_terkirim: true,
-            notif_dikirim_pada: new Date().toISOString(),
-            notif_percobaan: (r.notif_percobaan || 0) + 1,
-          })
-          .eq("id", r.id);
+      const { ok, detail } = await kirimKeAdmin(buatPesan(r, jenis));
+      const waktu = new Date().toISOString();
+      let update;
+      if (ok) {
+        update = jenis === "habis"
+          ? { notif_terkirim: true, notif_dikirim_pada: waktu, notif_peringatan_terkirim: true, notif_percobaan: 0, notif_error: null }
+          : { notif_peringatan_terkirim: true, notif_peringatan_pada: waktu, notif_percobaan: 0, notif_error: null };
         hasil.terkirim++;
-        hasil.detail.push({ id: r.id, nama: r.nama, status: "terkirim" });
       } else {
-        await supabase
-          .from("rentals")
-          .update({ notif_percobaan: (r.notif_percobaan || 0) + 1 })
-          .eq("id", r.id);
+        update = { notif_percobaan: (r.notif_percobaan || 0) + 1, notif_error: detail };
         hasil.gagal++;
-        hasil.detail.push({
-          id: r.id,
-          nama: r.nama,
-          status: "gagal",
-          percobaan_ke: (r.notif_percobaan || 0) + 1,
-        });
       }
+      const { error: uErr } = await supabase.from("rentals").update(update).eq("id", r.id);
+      hasil.detail.push({
+        nama: r.nama,
+        jenis,
+        status: ok ? "terkirim" : "gagal",
+        alasan: ok ? undefined : detail,
+        error_db: uErr ? uErr.message : undefined,
+      });
     }
 
     return res.status(200).json(hasil);
   } catch (e) {
-    return res.status(500).json({ error: e.message || "Terjadi kesalahan server" });
+    return res.status(500).json({ error: e.message || "Terjadi kesalahan server", ...hasil });
   }
 };
-
-function buatPesan(r) {
-  const durasi = `${r.durasi_nilai} ${r.durasi_satuan}`;
-  const sudahHabis = new Date(r.tanggal_berakhir) <= new Date();
-  const judulEmoji = sudahHabis ? "📢 SEWA HABIS" : "⚠️ SEWA HAMPIR HABIS (10 menit lagi)";
-  const baris = [
-    `${judulEmoji} — Lailyeeaah`,
-    `Nama   : ${r.nama}`,
-  ];
-  if (r.tipe_akun) baris.push(`Layanan: ${formatTipeAkun(r.tipe_akun)}`);
-  if (r.email_akun) baris.push(`Akun   : ${r.email_akun}`);
-  if (r.email_pelanggan) baris.push(`Email  : ${r.email_pelanggan}`);
-  baris.push(
-    `Device : ${r.device}`,
-    `Mulai  : ${formatWIB(r.tanggal_sewa)}`,
-    `Durasi : ${durasi}`,
-    `Harga  : Rp${formatRupiah(r.harga)}`,
-    `Habis  : ${formatWIB(r.tanggal_berakhir)}`,
-    "Segera konfirmasi perpanjangan atau cabut akses ya."
-  );
-  return baris.join("\n");
-}
-
-async function kirimFonnte(target, message) {
-  try {
-    const resp = await fetch("https://api.fonnte.com/send", {
-      method: "POST",
-      headers: {
-        Authorization: process.env.FONNTE_TOKEN,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ target, message }),
-    });
-    const json = await resp.json().catch(() => ({}));
-    // Fonnte mengembalikan { status: true } saat pesan diterima antrean
-    return resp.ok && json.status === true;
-  } catch {
-    return false;
-  }
-}

@@ -15,10 +15,10 @@ module.exports = async (req, res) => {
 
   if (req.method === "POST") {
     const { password } = req.body || {};
-    if (!process.env.ADMIN_PASSWORD) {
+    if (!(process.env.ADMIN_PASSWORD || "").replace(/\r/g, "").trim()) {
       return res.status(500).json({ error: "ADMIN_PASSWORD belum diset di server" });
     }
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
+    if (!password || password !== (process.env.ADMIN_PASSWORD || "").replace(/\r/g, "").trim()) {
       return res.status(401).json({ error: "Password salah" });
     }
     setSessionCookie(res);

@@ -16,8 +16,8 @@ function formatTipeAkun(val) {
 }
 
 function getSupabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY;
+  const url = (process.env.SUPABASE_URL || "").replace(/\r/g, "").trim();
+  const key = (process.env.SUPABASE_SERVICE_KEY || "").replace(/\r/g, "").trim();
   if (!url || !key) {
     throw new Error("SUPABASE_URL / SUPABASE_SERVICE_KEY belum diset di environment variable");
   }
@@ -28,7 +28,7 @@ function getSupabase() {
 // Cukup aman untuk satu admin: token hanya valid selama password tidak diganti.
 function sessionToken() {
   return crypto
-    .createHmac("sha256", process.env.ADMIN_PASSWORD || "no-password")
+    .createHmac("sha256", (process.env.ADMIN_PASSWORD || "").replace(/\r/g, "").trim() || "no-password")
     .update("lailyeeaah-admin-session")
     .digest("hex");
 }

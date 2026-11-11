@@ -126,6 +126,9 @@ module.exports = async (req, res) => {
         update.notif_terkirim = false;
         update.notif_dikirim_pada = null;
         update.notif_percobaan = 0;
+        update.notif_peringatan_terkirim = false;
+        update.notif_peringatan_pada = null;
+        update.notif_error = null;
       }
 
       const { data, error } = await supabase

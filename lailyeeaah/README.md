@@ -52,17 +52,37 @@ lailyeeaah/
    - Jadwal: **setiap 5 menit**.
 3. Simpan. (Vercel Cron tidak dipakai karena paket Hobby hanya mengizinkan sekali sehari.)
 
-## Cara kerja notifikasi WA
+## Cara kerja notifikasi WA (hanya ke admin)
 
-1. cron-job.org memanggil `/api/check-expired` tiap 5 menit.
-2. Endpoint mencari sewa `status = aktif`, `tanggal_berakhir <= sekarang`, `notif_terkirim = false`, `notif_percobaan < 3`.
-3. Pesan dikirim via Fonnte ke nomor admin (dan nomor pelanggan jika diisi).
-4. Berhasil → `notif_terkirim = true` + waktu kirim disimpan (tidak akan dobel).
-   Gagal → `notif_percobaan + 1`, dicoba lagi putaran berikutnya (maks 3×), kartu diberi tanda **⚠ Notif gagal**.
+cron-job.org memanggil `/api/check-expired?key=<CRON_SECRET>` tiap 5 menit. Pesan **hanya dikirim ke `ADMIN_WA_NUMBER`**, dua tahap, masing-masing sekali:
 
-## Uji cepat (kriteria penerimaan)
+1. **⚠️ SEWA HAMPIR HABIS** — saat sisa waktu ≤ `PERINGATAN_MENIT` (default 10 menit).
+2. **📢 SEWA HABIS** — saat waktu sewa sudah lewat.
 
-Tambah sewa tes: durasi **1 hari**, tanggal sewa diundur ke **kemarin** → kartu langsung berstatus HABIS → dalam ≤ 10 menit pesan WA masuk ke nomor admin, tanpa web dibuka.
+Kalau Fonnte gagal, sistem mencoba lagi tiap putaran sampai berhasil. Alasan gagalnya tersimpan di kolom `notif_error`, dan kartu diberi tanda **⚠ Notif gagal** setelah 3 kali gagal.
+
+> Tanpa job di cron-job.org, **tidak akan ada notif sama sekali**. Vercel tidak menjalankan pengecekan sendiri.
+
+## Notif tidak masuk? Diagnosa dalam 1 menit
+
+Buka di browser: `https://<domain>.vercel.app/api/test-wa?key=<CRON_SECRET>`
+
+Hasilnya menampilkan 4 langkah, dan langkah yang `ok: false` adalah penyebabnya:
+
+| Langkah | Kalau gagal |
+| --- | --- |
+| 1_konfigurasi | Env var di Vercel kosong/salah format → isi lalu **Redeploy** |
+| 2_database | Kolom belum ada → jalankan `supabase/migrasi-v3.sql` |
+| 3_seharusnya_dinotif | Daftar sewa yang mestinya dinotif + alasan gagal terakhir |
+| 4_kirim_tes_ke_admin | Jawaban asli Fonnte (device disconnect, token salah, kuota habis, dll.) |
+
+Setelah tes berhasil, cek juga riwayat eksekusi job di cron-job.org: statusnya harus **200**, bukan 401/404/500.
+
+## Upgrade dari versi sebelumnya
+
+1. Jalankan `supabase/migrasi-v3.sql` di SQL Editor Supabase.
+2. Pastikan semua env var di `.env.example` sudah ada di Vercel (termasuk `ADMIN_PASSWORD`), lalu push & redeploy.
+3. Buka `/api/test-wa?key=...` untuk memastikan semuanya hijau.
 
 ## Pengembangan lokal
 
