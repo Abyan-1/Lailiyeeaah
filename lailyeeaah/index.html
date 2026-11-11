@@ -229,12 +229,9 @@
           </div>
           <div>
             <label class="label-field">Satuan</label>
-            <select x-model="form.durasi_satuan" @change="onSatuanChange()" class="input-field">
-              <option value="hari">hari</option>
-              <option value="minggu">minggu</option>
-              <option value="bulan">bulan</option>
-              <option value="tahun">tahun</option>
-            </select>
+            <!-- Satuan dikunci otomatis dari paket yang dipilih -->
+            <div x-show="!form.paket_harga_id" class="input-field bg-blush-50 text-ink/40 cursor-not-allowed select-none">— pilih paket dulu</div>
+            <div x-show="form.paket_harga_id" class="input-field bg-blush-50 font-semibold text-blush-700 cursor-not-allowed select-none capitalize" x-text="form.durasi_satuan"></div>
           </div>
         </div>
         <!-- Indikator Total Harga Otomatis -->

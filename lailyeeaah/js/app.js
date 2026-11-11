@@ -186,10 +186,12 @@ function monitoringPage() {
         this.sesuaikanDurasiDariPaket(paketTersedia[0]);
       } else {
         this.form.paket_harga_id = "";
+        this.form.durasi_satuan = "hari";
+        this.form.durasi_nilai = 1;
       }
     },
     onSatuanChange() {
-      // Satuan durasi diganti manual
+      // Satuan dikunci otomatis dari paket, tidak diubah manual
     },
     onPaketChange() {
       const p = this.packages.find((x) => x.id === this.form.paket_harga_id);
@@ -197,11 +199,18 @@ function monitoringPage() {
     },
     sesuaikanDurasiDariPaket(p) {
       if (!p) return;
-      const s = this.getPaketSatuan(p);
-      if (s && s !== "lainnya") {
-        this.form.durasi_satuan = s;
-      }
+      // Kunci satuan dari nama paket
       const nama = (p.nama_paket || "").toLowerCase();
+      if (nama.includes("hari")) {
+        this.form.durasi_satuan = "hari";
+      } else if (nama.includes("minggu")) {
+        this.form.durasi_satuan = "minggu";
+      } else if (nama.includes("bulan")) {
+        this.form.durasi_satuan = "bulan";
+      } else if (nama.includes("tahun")) {
+        this.form.durasi_satuan = "tahun";
+      }
+      // Set durasi nilai dari nama paket (mis "1 Hari" → 1)
       const match = nama.match(/(\d+)\s*(hari|minggu|bulan|tahun)/i);
       if (match) {
         const val = parseInt(match[1], 10);
