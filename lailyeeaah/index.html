@@ -195,6 +195,25 @@
             <option value="max_privat">Max Privat</option>
           </select>
         </div>
+        <div>
+          <label class="label-field">Email Akun Claude *</label>
+          <input type="email" x-model="form.email_akun" required class="input-field font-mono text-xs" placeholder="mis. claude.acc1@gmail.com" />
+        </div>
+        <div>
+          <label class="label-field">Device *</label>
+          <input type="text" x-model="form.device" required list="device-list" class="input-field" placeholder="iPhone / Android / Laptop" />
+          <datalist id="device-list">
+            <option value="iPhone"></option>
+            <option value="Android"></option>
+            <option value="Laptop"></option>
+            <option value="iPad"></option>
+            <option value="TV"></option>
+          </datalist>
+        </div>
+        <div>
+          <label class="label-field">Tanggal sewa *</label>
+          <input type="datetime-local" x-model="form.tanggal_sewa" required class="input-field" />
+        </div>
         <!-- Satuan dipilih SEBELUM paket, lalu paket terfilter otomatis -->
         <div>
           <label class="label-field font-bold text-blush-700">Satuan Sewa *</label>
