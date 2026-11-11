@@ -194,44 +194,32 @@
             <option value="max_privat">Max Privat</option>
           </select>
         </div>
+        <!-- Satuan dipilih SEBELUM paket, lalu paket terfilter otomatis -->
         <div>
-          <label class="label-field">Email Akun Claude *</label>
-          <input type="email" x-model="form.email_akun" required class="input-field font-mono text-xs" placeholder="mis. claude.acc1@gmail.com" />
-        </div>
-        <div>
-          <label class="label-field">Device *</label>
-          <input type="text" x-model="form.device" required list="device-list" class="input-field" placeholder="iPhone / Android / Laptop" />
-          <datalist id="device-list">
-            <option value="iPhone"></option>
-            <option value="Android"></option>
-            <option value="Laptop"></option>
-            <option value="iPad"></option>
-            <option value="TV"></option>
-          </datalist>
-        </div>
-        <div>
-          <label class="label-field">Tanggal sewa *</label>
-          <input type="datetime-local" x-model="form.tanggal_sewa" required class="input-field" />
+          <label class="label-field font-bold text-blush-700">Satuan Sewa *</label>
+          <select x-model="form.durasi_satuan" @change="onSatuanChange()" required class="input-field font-medium">
+            <option value="hari">Harian</option>
+            <option value="minggu">Mingguan</option>
+            <option value="bulan">Bulanan</option>
+          </select>
         </div>
         <div>
           <label class="label-field font-bold text-blush-700">Harga sewa (paket) *</label>
-          <select x-model="form.paket_harga_id" @change="onPaketChange()" required class="input-field font-medium">
+          <div x-show="filteredPackages.length === 0" class="input-field bg-blush-50 text-ink/40 text-sm">
+            ⚠️ Tidak ada paket untuk kombinasi ini
+          </div>
+          <select x-show="filteredPackages.length > 0" x-model="form.paket_harga_id" @change="onPaketChange()" required class="input-field font-medium">
             <option value="" disabled>Pilih paket harga…</option>
             <template x-for="p in filteredPackages" :key="p.id">
-              <option :value="p.id" x-text="`${p.nama_paket} — ${fmtRupiah(p.harga)}`"></option>
+              <option :value="p.id" x-text="`${fmtRupiah(p.harga)}`"></option>
             </template>
           </select>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="label-field">Durasi *</label>
-            <input type="number" min="1" x-model="form.durasi_nilai" required class="input-field" />
-          </div>
-          <div>
-            <label class="label-field">Satuan</label>
-            <!-- Satuan dikunci otomatis dari paket yang dipilih -->
-            <div x-show="!form.paket_harga_id" class="input-field bg-blush-50 text-ink/40 cursor-not-allowed select-none">— pilih paket dulu</div>
-            <div x-show="form.paket_harga_id" class="input-field bg-blush-50 font-semibold text-blush-700 cursor-not-allowed select-none capitalize" x-text="form.durasi_satuan"></div>
+        <div>
+          <label class="label-field">Durasi *</label>
+          <div class="flex items-center gap-2">
+            <input type="number" min="1" x-model="form.durasi_nilai" required class="input-field w-24" />
+            <span class="text-sm font-semibold text-blush-700 capitalize" x-text="form.durasi_satuan"></span>
           </div>
         </div>
         <!-- Indikator Total Harga Otomatis -->

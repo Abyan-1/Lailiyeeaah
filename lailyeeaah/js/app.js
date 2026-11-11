@@ -167,31 +167,44 @@ function monitoringPage() {
     getPaketSatuan,
     formatTipeAkun,
     get filteredPackages() {
-      if (!this.form.tipe_akun) return this.packages;
-      const cocok = this.packages.filter((p) => {
-        if (p.tipe_akun) return p.tipe_akun === this.form.tipe_akun;
+      if (!this.form.tipe_akun) return [];
+      return this.packages.filter((p) => {
+        // Filter berdasarkan tipe akun
+        const cocokTipe = p.tipe_akun === this.form.tipe_akun;
+        // Filter berdasarkan satuan yang dipilih user
         const nama = (p.nama_paket || "").toLowerCase();
-        if (this.form.tipe_akun === "pro_sharing") return nama.includes("pro") && !nama.includes("privat");
-        if (this.form.tipe_akun === "max_sharing") return nama.includes("max") && !nama.includes("privat");
-        if (this.form.tipe_akun === "pro_privat") return nama.includes("pro") && nama.includes("privat");
-        if (this.form.tipe_akun === "max_privat") return nama.includes("max") && nama.includes("privat");
-        return true;
+        const satuan = this.form.durasi_satuan;
+        const cocokSatuan =
+          satuan === "hari"   ? nama.includes("hari")   :
+          satuan === "minggu" ? nama.includes("minggu") :
+          satuan === "bulan"  ? nama.includes("bulan")  : true;
+        return cocokTipe && cocokSatuan;
       });
-      return cocok.length > 0 ? cocok : [];
     },
     onTipeAkunChange() {
-      const paketTersedia = this.filteredPackages;
-      if (paketTersedia.length > 0) {
-        this.form.paket_harga_id = paketTersedia[0].id;
-        this.sesuaikanDurasiDariPaket(paketTersedia[0]);
+      // Reset paket saat tipe akun berubah
+      this.form.paket_harga_id = "";
+      // Auto-pilih satuan default: privat → bulan, sharing → hari
+      if (this.form.tipe_akun === "pro_privat" || this.form.tipe_akun === "max_privat") {
+        this.form.durasi_satuan = "bulan";
       } else {
-        this.form.paket_harga_id = "";
         this.form.durasi_satuan = "hari";
+      }
+      // Auto-pilih paket pertama yang cocok
+      const paket = this.filteredPackages;
+      if (paket.length > 0) {
+        this.form.paket_harga_id = paket[0].id;
         this.form.durasi_nilai = 1;
       }
     },
     onSatuanChange() {
-      // Satuan dikunci otomatis dari paket, tidak diubah manual
+      // Reset paket saat satuan berubah, pilih paket pertama yang cocok
+      this.form.paket_harga_id = "";
+      const paket = this.filteredPackages;
+      if (paket.length > 0) {
+        this.form.paket_harga_id = paket[0].id;
+        this.form.durasi_nilai = 1;
+      }
     },
     onPaketChange() {
       const p = this.packages.find((x) => x.id === this.form.paket_harga_id);
@@ -199,18 +212,8 @@ function monitoringPage() {
     },
     sesuaikanDurasiDariPaket(p) {
       if (!p) return;
-      // Kunci satuan dari nama paket
+      // Durasi nilai otomatis dari nama paket (satuan sudah dipilih user)
       const nama = (p.nama_paket || "").toLowerCase();
-      if (nama.includes("hari")) {
-        this.form.durasi_satuan = "hari";
-      } else if (nama.includes("minggu")) {
-        this.form.durasi_satuan = "minggu";
-      } else if (nama.includes("bulan")) {
-        this.form.durasi_satuan = "bulan";
-      } else if (nama.includes("tahun")) {
-        this.form.durasi_satuan = "tahun";
-      }
-      // Set durasi nilai dari nama paket (mis "1 Hari" → 1)
       const match = nama.match(/(\d+)\s*(hari|minggu|bulan|tahun)/i);
       if (match) {
         const val = parseInt(match[1], 10);
