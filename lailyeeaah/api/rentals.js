@@ -90,6 +90,20 @@ module.exports = async (req, res) => {
           .select()
           .single();
         if (error) throw error;
+
+        // Kirim pesan bot & notifikasi push bahwa sewa telah ditandai selesai
+        try {
+          const { kirimPesanBot } = require("../lib/chat");
+          const infoLayanan = data.tipe_akun ? ` (${data.tipe_akun})` : "";
+          await kirimPesanBot({
+            isi: `✅ SEWA SELESAI — Lailyeeaah\n\nSewa pelanggan ${data.nama}${infoLayanan} pada device ${data.device} telah ditandai Selesai dan dipindahkan ke Riwayat.`,
+            rental_id: data.id,
+            jenis: "info",
+          });
+        } catch (botErr) {
+          console.warn("[rentals] Gagal kirim notif bot selesai:", botErr.message);
+        }
+
         return res.status(200).json({ data });
       }
 

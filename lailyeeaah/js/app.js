@@ -286,6 +286,32 @@ function monitoringPage() {
         this.onTipeAkunChange();
       }
       this.$watch("showForm", () => setTimeout(() => lucide.createIcons(), 50));
+
+      // Otomatis periksa sewa saat web dibuka & setiap 30 detik saat tab aktif
+      this.cekSewaSekarang();
+      setInterval(() => {
+        if (document.visibilityState === "visible") {
+          this.cekSewaSekarang();
+        }
+      }, 30000);
+    },
+
+    async cekSewaSekarang(manual = false) {
+      try {
+        const res = await api("/api/check-expired");
+        if (res && res.terkirim > 0) {
+          this.tampilToast(`🤖 Bot mengirim ${res.terkirim} notifikasi sewa!`);
+          if (Alpine.store("chatBadge")) {
+            Alpine.store("chatBadge").update();
+          }
+          await this.muatRentals();
+        } else if (manual) {
+          this.tampilToast("Pengecekan selesai: tidak ada sewa yang perlu dinotif saat ini.");
+        }
+      } catch (e) {
+        console.warn("[auto-check] Gagal mengecek sewa:", e.message);
+        if (manual) alert("Gagal memeriksa sewa: " + e.message);
+      }
     },
 
     async muatRentals() {
@@ -712,8 +738,26 @@ function chatPage() {
       this.cekHashScroll();
       window.addEventListener("hashchange", () => this.cekHashScroll());
 
+      // Pengecekan sewa saat membuka chat
+      this.cekSewaSekarang();
+
       if (typeof lucide !== "undefined" && lucide.createIcons) {
         setTimeout(() => lucide.createIcons(), 50);
+      }
+    },
+
+    async cekSewaSekarang(manual = false) {
+      try {
+        const res = await api("/api/check-expired");
+        if (res && res.terkirim > 0) {
+          this.tampilToast(`🤖 Bot mengirim ${res.terkirim} notifikasi baru!`);
+          await this.muat(true);
+        } else if (manual) {
+          this.tampilToast("Pengecekan selesai: belum ada sewa yang habis.");
+        }
+      } catch (e) {
+        console.warn("[chat-check] Gagal:", e.message);
+        if (manual) alert("Gagal memeriksa sewa: " + e.message);
       }
     },
 
@@ -721,6 +765,8 @@ function chatPage() {
       this.pollTimer = setInterval(async () => {
         if (document.visibilityState === "visible") {
           await this.muat(true);
+          // Cek sewa secara berkala
+          this.cekSewaSekarang();
         }
       }, 10000);
     },

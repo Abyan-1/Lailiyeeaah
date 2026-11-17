@@ -1,9 +1,9 @@
 // Logika notifikasi Bot Lailyeeaah & Web Push
 const { formatWIB, formatRupiah, formatTipeAkun } = require("./util");
 
-// Ambil env var dan buang spasi / \r (file .env dari Windows sering membawa \r)
+// Ambil env var dan buang spasi / \r / tanda kutip
 function env(nama) {
-  return (process.env[nama] || "").replace(/\r/g, "").trim();
+  return (process.env[nama] || "").replace(/\r/g, "").trim().replace(/^["']|["']$/g, "");
 }
 
 function cekKonfigurasi() {
@@ -12,11 +12,9 @@ function cekKonfigurasi() {
   if (!env("SUPABASE_SERVICE_KEY")) masalah.push("SUPABASE_SERVICE_KEY kosong");
   if (!env("VAPID_PUBLIC_KEY")) masalah.push("VAPID_PUBLIC_KEY kosong");
   if (!env("VAPID_PRIVATE_KEY")) masalah.push("VAPID_PRIVATE_KEY kosong");
-  const vapidSub = env("VAPID_SUBJECT");
+  let vapidSub = env("VAPID_SUBJECT");
   if (!vapidSub) {
     masalah.push("VAPID_SUBJECT kosong (contoh: mailto:admin@domain.com)");
-  } else if (!vapidSub.startsWith("mailto:") && !vapidSub.startsWith("https://")) {
-    masalah.push("VAPID_SUBJECT harus diawali mailto: atau https://");
   }
   if (!env("CRON_SECRET")) masalah.push("CRON_SECRET kosong");
   return masalah;

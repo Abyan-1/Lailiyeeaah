@@ -29,6 +29,7 @@ self.addEventListener("push", (event) => {
     },
     vibrate: [200, 100, 200],
     renotify: true,
+    requireInteraction: true,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));

@@ -3,13 +3,16 @@ const webpush = require("web-push");
 const { getSupabase } = require("./util");
 
 function env(nama) {
-  return (process.env[nama] || "").replace(/\r/g, "").trim();
+  return (process.env[nama] || "").replace(/\r/g, "").trim().replace(/^["']|["']$/g, "");
 }
 
 function initVapid() {
   const pub = env("VAPID_PUBLIC_KEY");
   const priv = env("VAPID_PRIVATE_KEY");
-  const sub = env("VAPID_SUBJECT") || "mailto:admin@lailyeeaah.local";
+  let sub = env("VAPID_SUBJECT") || "mailto:admin@lailyeeaah.local";
+  if (sub && !sub.startsWith("mailto:") && !sub.startsWith("https://")) {
+    sub = "mailto:" + sub;
+  }
 
   if (!pub || !priv) {
     throw new Error("VAPID_PUBLIC_KEY dan VAPID_PRIVATE_KEY wajib diset di environment variable");

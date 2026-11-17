@@ -1,26 +1,35 @@
-// GET /api/check-expired?key=<CRON_SECRET>
-// Dipanggil cron-job.org setiap 5 menit.
+// GET /api/check-expired?key=<CRON_SECRET> atau dipanggil admin yang sudah login
+// Dipanggil cron-job.org setiap 5 menit atau otomatis oleh web admin saat aktif.
 // Notifikasi dikirimkan ke ruang chat "Bot Lailyeeaah" & Web Push admin, dua tahap:
 //   1. PERINGATAN  — sewa akan habis dalam PERINGATAN_MENIT (default 10 menit)
 //   2. HABIS       — sewa sudah melewati tanggal_berakhir
 // Masing-masing hanya terkirim sekali (ditandai di database).
 // Pesan bot di database adalah sumber kebenaran (sewa dianggap dinotif begitu pesan tersimpan).
 // Push notification hanya pemberitahu. Jika push gagal, pesan tetap tersimpan di chat.
-const { getSupabase } = require("../lib/util");
+const { getSupabase, isAuthed } = require("../lib/util");
 const { env, cekKonfigurasi, peringatanMenit, buatPesan } = require("../lib/notif");
 const { kirimPesanBot } = require("../lib/chat");
 
 module.exports = async (req, res) => {
   const auth = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   const key = req.query.key || auth;
-  if (!env("CRON_SECRET") || key !== env("CRON_SECRET")) {
-    return res.status(401).json({ error: "Secret key salah / CRON_SECRET belum diset" });
+  const isCronKeyValid = env("CRON_SECRET") && key === env("CRON_SECRET");
+  const isAdmin = isAuthed(req);
+
+  if (!isCronKeyValid && !isAdmin) {
+    return res.status(401).json({ error: "Secret key salah atau belum login admin" });
   }
 
   const masalah = cekKonfigurasi();
   if (masalah.length) return res.status(500).json({ error: "Konfigurasi belum lengkap", masalah });
 
-  const supabase = getSupabase();
+  let supabase;
+  try {
+    supabase = getSupabase();
+  } catch (dbErr) {
+    return res.status(500).json({ error: dbErr.message });
+  }
+
   const now = new Date();
   const batasPeringatan = new Date(now.getTime() + peringatanMenit() * 60000);
   const hasil = {
