@@ -41,8 +41,22 @@ async function api(url, opt = {}) {
     location.href = "/login.html";
     throw new Error("Belum login");
   }
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || "Terjadi kesalahan");
+
+  const text = await res.text().catch(() => "");
+  let json = {};
+  try {
+    json = JSON.parse(text);
+  } catch {}
+
+  if (!res.ok) {
+    console.error(`[API Error] ${opt.method || "GET"} ${url} (${res.status}):`, text);
+    const detail =
+      json.error ||
+      json.message ||
+      (text && text.length < 250 && !text.includes("<!DOCTYPE") && !text.includes("<html") ? text : null) ||
+      `Server mengembalikan HTTP ${res.status} (${res.statusText || "Error"})`;
+    throw new Error(detail);
+  }
   return json;
 }
 
@@ -64,8 +78,9 @@ function nowLocalInput() {
 }
 
 function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const cleanStr = String(base64String || "").trim().replace(/['"\s]/g, "");
+  const padding = "=".repeat((4 - (cleanStr.length % 4)) % 4);
+  const base64 = (cleanStr + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
@@ -160,40 +175,70 @@ function pushNotificationManager() {
 
       this.loading = true;
       try {
-        // Ambil VAPID public key dari server
-        const { vapidPublicKey } = await api("/api/push-subscribe");
-        if (!vapidPublicKey) {
-          throw new Error("VAPID_PUBLIC_KEY belum diset di server");
+        // 1. Ambil VAPID public key dari server
+        let resKey;
+        try {
+          resKey = await api("/api/push-subscribe");
+        } catch (e) {
+          throw new Error("Gagal mengambil kunci VAPID: " + e.message);
         }
 
-        // Minta izin ke pengguna (wajib dari interaksi klik tombol)
-        const perm = await Notification.requestPermission();
+        const vapidPublicKey = resKey && resKey.vapidPublicKey;
+        if (!vapidPublicKey) {
+          throw new Error("VAPID_PUBLIC_KEY belum diset di Vercel Environment Variables. Silakan generate VAPID keys dan tambahkan ke Vercel.");
+        }
+
+        // 2. Minta izin ke pengguna (wajib dari interaksi klik tombol)
+        let perm = Notification.permission;
+        if (perm !== "granted") {
+          perm = await Notification.requestPermission();
+        }
         this.permission = perm;
         if (perm !== "granted") {
-          throw new Error("Izin notifikasi tidak diberikan (status: " + perm + ")");
+          throw new Error("Izin notifikasi tidak diberikan (status: " + perm + "). Harap izinkan notifikasi pada ikon setelan browser di samping alamat URL.");
         }
 
-        const reg = await navigator.serviceWorker.ready;
+        // 3. Pastikan Service Worker terdaftar & aktif
+        let reg;
+        try {
+          reg = await navigator.serviceWorker.register("/sw.js");
+          await navigator.serviceWorker.ready;
+        } catch (swErr) {
+          throw new Error("Service Worker gagal didaftarkan: " + swErr.message);
+        }
+
+        // 4. Daftarkan Push Subscription ke browser push service (Google FCM / Mozilla autopush)
         let sub = await reg.pushManager.getSubscription();
         if (!sub) {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-          });
+          try {
+            const cleanKey = String(vapidPublicKey).replace(/['"\s]/g, "");
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(cleanKey),
+            });
+          } catch (subErr) {
+            throw new Error("Gagal mendaftarkan push ke browser: " + subErr.message);
+          }
         }
 
-        // Simpan subscription ke Supabase via serverless function
-        await api("/api/push-subscribe", {
-          method: "POST",
-          body: JSON.stringify({
-            subscription: sub.toJSON(),
-            userAgent: navigator.userAgent,
-          }),
-        });
+        // 5. Simpan subscription ke Supabase via serverless function
+        try {
+          await api("/api/push-subscribe", {
+            method: "POST",
+            body: JSON.stringify({
+              subscription: sub.toJSON(),
+              userAgent: navigator.userAgent,
+            }),
+          });
+        } catch (saveErr) {
+          throw new Error("Gagal menyimpan subscription ke server: " + saveErr.message);
+        }
 
         this.isSubscribed = true;
+        alert("Notifikasi Web Push berhasil diaktifkan! Browser ini akan menerima pemberitahuan sewa.");
       } catch (err) {
-        alert("Gagal mengaktifkan notifikasi: " + err.message);
+        console.error("[push] aktifkan error:", err);
+        alert("Gagal mengaktifkan notifikasi:\n" + err.message);
       } finally {
         this.loading = false;
         if (typeof lucide !== "undefined" && lucide.createIcons) {
