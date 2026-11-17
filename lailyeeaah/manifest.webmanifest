@@ -1,0 +1,25 @@
+{
+  "name": "Lailyeeaah — Monitoring Sewa",
+  "short_name": "Lailyeeaah",
+  "description": "Web monitoring sewa aplikasi dan notifikasi bot Lailyeeaah",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF5F7",
+  "theme_color": "#FF8DA1",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

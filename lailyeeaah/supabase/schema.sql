@@ -29,12 +29,12 @@ create table if not exists public.rentals (
   paket_harga_id uuid references public.price_packages (id),
   harga integer not null,                       -- disalin dari paket saat transaksi
   status text not null default 'aktif' check (status in ('aktif','selesai')),
-  notif_peringatan_terkirim boolean not null default false, -- WA "hampir habis" ke admin
+  notif_peringatan_terkirim boolean not null default false, -- Peringatan "hampir habis" ke admin
   notif_peringatan_pada timestamptz,
-  notif_terkirim boolean not null default false,            -- WA "sewa habis" ke admin
+  notif_terkirim boolean not null default false,            -- Notif "sewa habis" ke admin
   notif_dikirim_pada timestamptz,
   notif_percobaan integer not null default 0,               -- jumlah gagal berturut-turut
-  notif_error text,                                         -- alasan gagal terakhir dari Fonnte
+  notif_error text,                                         -- alasan gagal terakhir pengiriman notifikasi
   selesai_pada timestamptz,
   created_at timestamptz not null default now()
 );
@@ -43,11 +43,40 @@ create table if not exists public.rentals (
 create index if not exists idx_rentals_expired
   on public.rentals (status, notif_terkirim, tanggal_berakhir);
 
+-- ===================== Tabel Web Push Subscriptions =====================
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  endpoint text unique not null,
+  p256dh text not null,
+  auth text not null,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_push_subscriptions_endpoint
+  on public.push_subscriptions (endpoint);
+
+-- ===================== Tabel Pesan Chat Bot Lailyeeaah =====================
+create table if not exists public.chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  pengirim text not null check (pengirim in ('bot', 'admin')),
+  isi text not null,
+  rental_id uuid references public.rentals (id) on delete set null,
+  jenis text check (jenis in ('peringatan', 'habis', 'info', 'balasan')),
+  dibaca boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_chat_messages_created_at
+  on public.chat_messages (created_at);
+
 -- ===================== Keamanan =====================
 -- Aktifkan RLS tanpa policy: anon/public key TIDAK bisa membaca apa pun.
 -- Server memakai service_role key yang melewati RLS.
 alter table public.rentals enable row level security;
 alter table public.price_packages enable row level security;
+alter table public.push_subscriptions enable row level security;
+alter table public.chat_messages enable row level security;
 
 -- ===================== Seed paket harga awal (silakan ubah) =====================
 insert into public.price_packages (nama_paket, tipe_akun, harga) values

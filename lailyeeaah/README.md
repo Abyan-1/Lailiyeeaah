@@ -1,99 +1,132 @@
 # Lailyeeaah 🌸
 
-Web monitoring jualan sewa (langganan) aplikasi: setiap pelanggan tampil dalam satu kartu dengan hitung mundur sisa waktu sewa, dan **notifikasi WhatsApp terkirim otomatis** begitu masa sewa habis — walau web tidak sedang dibuka.
+Web monitoring sewa (langganan) aplikasi: setiap pelanggan tampil dalam satu kartu dengan hitung mundur sisa waktu sewa, **ruang chat internal "Bot Lailyeeaah"**, dan **Web Push Notification otomatis** langsung ke browser/HP admin begitu masa sewa hampir habis atau sudah habis — walau web sedang ditutup.
 
-Dibangun sesuai PRD: HTML + Tailwind CSS + Alpine.js (frontend), Vercel Serverless Functions (backend), Supabase (database), Fonnte (WhatsApp), cron-job.org (penjadwal 5 menit).
+Dibangun dengan stack: HTML + Tailwind CSS + Alpine.js (frontend), Vercel Serverless Functions (backend CommonJS), Supabase (database via `service_role` key dengan RLS aktif), Web Push (VAPID), dan cron-job.org (penjadwal rutin 5 menit).
 
-## Struktur folder
+---
+
+## Struktur Folder
 
 ```
 lailyeeaah/
-├─ index.html          # Halaman Monitoring (kartu + countdown + Done)
-├─ riwayat.html        # Halaman Riwayat (tabel, filter bulan, total pendapatan)
-├─ login.html          # Login admin
-├─ css/style.css       # Hasil build Tailwind (sudah disertakan)
-├─ src/input.css       # Sumber Tailwind
-├─ js/app.js           # Countdown, form, Done, riwayat, login
+├─ index.html               # Halaman Monitoring (kartu sewa + countdown + banner push notif)
+├─ riwayat.html             # Halaman Riwayat sewa selesai (filter bulan & total omzet)
+├─ paket.html               # Halaman Kelola Paket Harga
+├─ chat.html                # Ruang Chat "Bot Lailyeeaah" (pesan bot + tombol aksi cepat)
+├─ login.html               # Halaman login admin
+├─ sw.js                    # Service Worker (event push & notificationclick)
+├─ manifest.webmanifest     # Manifest PWA (Add to Home Screen untuk iOS / Android)
+├─ icons/                   # Ikon aplikasi 192px & 512px
+├─ css/style.css            # Hasil kompilasi Tailwind CSS
+├─ src/input.css            # Sumber stylesheet Tailwind
+├─ js/app.js                # Frontend logic (Alpine.js, Web Push, Chat, Rentals)
 ├─ api/
-│  ├─ rentals.js       # CRUD sewa (GET/POST/PUT/DELETE)
-│  ├─ packages.js      # Paket harga untuk dropdown
-│  ├─ login.js         # Login/logout admin (cookie sesi)
-│  └─ check-expired.js # Cek sewa habis + kirim WA (dipanggil cron)
-├─ lib/util.js         # Helper bersama (Supabase, auth, hitung tanggal)
-├─ supabase/schema.sql # Skema database + seed paket harga
-├─ tailwind.config.js
-├─ vercel.json
+│  ├─ rentals.js            # CRUD sewa (GET/POST/PUT/DELETE)
+│  ├─ packages.js           # Kelola paket harga
+│  ├─ login.js              # Sesi login admin (cookie httpOnly)
+│  ├─ chat.js               # API ruang chat bot (GET/POST/PUT mark read)
+│  ├─ push-subscribe.js     # API pendaftaran push subscription admin
+│  ├─ test-push.js          # Diagnosa koneksi database & pengujian push
+│  └─ check-expired.js      # Pemeriksaan sewa habis (dipanggil cron-job.org)
+├─ lib/
+│  ├─ util.js               # Helper umum (Supabase, autentikasi sesi, format)
+│  ├─ push.js               # Web Push sender (VAPID & auto-cleanup expired subs)
+│  ├─ chat.js               # Pengirim pesan bot (DB first -> Push notification)
+│  └─ notif.js              # Pembuat pesan bot & validasi konfigurasi
+├─ supabase/
+│  ├─ schema.sql            # Skema lengkap database
+│  ├─ migrasi-v3.sql        # Migrasi v3
+│  └─ migrasi-v4-push-chat.sql # Migrasi v4 (tabel push_subscriptions & chat_messages)
+├─ vercel.json              # Konfigurasi deployment Vercel & no-cache sw.js
 ├─ package.json
-└─ .env.example        # Daftar environment variable
+└─ .env.example             # Contoh environment variables
 ```
 
-## Cara deploy (±15 menit)
+---
 
-### 1. Supabase
-1. Buat project baru di [supabase.com](https://supabase.com) (paket gratis).
-2. Buka **SQL Editor** → jalankan isi `supabase/schema.sql` → tabel `rentals` & `price_packages` terbuat beserta 4 paket harga contoh.
-3. Catat dari **Project Settings → API**: `Project URL` dan `service_role` key.
+## Alur Notifikasi Bot & Web Push
 
-### 2. Fonnte (WhatsApp)
-1. Daftar di [fonnte.com](https://fonnte.com), tambahkan device, **scan QR** dengan nomor WA pengirim.
-2. Salin **token** dari dashboard.
+cron-job.org memanggil `/api/check-expired?key=<CRON_SECRET>` setiap 5 menit:
 
-### 3. Vercel
-1. Push folder ini ke repo GitHub.
-2. Import repo di [vercel.com](https://vercel.com) (framework: **Other**).
-3. Isi Environment Variables (lihat `.env.example`):
-   `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `FONNTE_TOKEN`, `ADMIN_WA_NUMBER`, `ADMIN_PASSWORD`, `CRON_SECRET`.
-4. Deploy. Web bisa diakses di `https://<nama>.vercel.app`, login memakai `ADMIN_PASSWORD`.
+1. **⚠️ SEWA HAMPIR HABIS**: Saat sisa waktu sewa ≤ `PERINGATAN_MENIT` (default 10 menit).
+2. **📢 SEWA HABIS**: Saat masa sewa sudah melewati `tanggal_berakhir`.
 
-### 4. cron-job.org (penjadwal)
-1. Daftar di [cron-job.org](https://cron-job.org) (gratis).
-2. Buat job baru:
-   - URL: `https://<nama>.vercel.app/api/check-expired?key=<CRON_SECRET>`
-   - Jadwal: **setiap 5 menit**.
-3. Simpan. (Vercel Cron tidak dipakai karena paket Hobby hanya mengizinkan sekali sehari.)
+### Mekanisme Pengiriman:
+- **Database adalah Sumber Kebenaran**: Setiap pesan bot wajib tersimpan terlebih dahulu ke tabel `chat_messages`. Sewa dianggap sudah dinotif segera setelah pesan chat tersimpan.
+- **Web Push sebagai Pemberitahu**: Setelah pesan tersimpan di chat, server mengirimkan Web Push Notification ke seluruh browser/HP admin yang terdaftar di `push_subscriptions`.
+- Jika push gagal atau belum ada browser yang aktif, pesan tetap tersimpan aman di ruang chat web admin.
+- Saat notifikasi push diklik di browser/HP, halaman `/chat.html` akan terbuka/fokus dan otomatis menggulir (*scroll*) ke pesan terkait.
 
-## Cara kerja notifikasi WA (hanya ke admin)
+---
 
-cron-job.org memanggil `/api/check-expired?key=<CRON_SECRET>` tiap 5 menit. Pesan **hanya dikirim ke `ADMIN_WA_NUMBER`**, dua tahap, masing-masing sekali:
+## Langkah Deploy & Setup (±10 menit)
 
-1. **⚠️ SEWA HAMPIR HABIS** — saat sisa waktu ≤ `PERINGATAN_MENIT` (default 10 menit).
-2. **📢 SEWA HABIS** — saat waktu sewa sudah lewat.
+### 1. Jalankan Migrasi di Supabase
+1. Buka dashboard project di [supabase.com](https://supabase.com).
+2. Buka **SQL Editor** &gt; **New Query**.
+3. Jika baru pertama kali setup, jalankan `supabase/schema.sql`.
+4. Jika database sudah ada dari versi sebelumnya, jalankan file migrasi:
+   `supabase/migrasi-v4-push-chat.sql`
+   *(Migrasi ini membuat tabel `push_subscriptions` dan `chat_messages` tanpa menghapus data sewa yang sudah ada).*
+5. Salin dari menu **Project Settings → API**:
+   - `Project URL`
+   - `service_role` key (secret key untuk backend).
 
-Kalau Fonnte gagal, sistem mencoba lagi tiap putaran sampai berhasil. Alasan gagalnya tersimpan di kolom `notif_error`, dan kartu diberi tanda **⚠ Notif gagal** setelah 3 kali gagal.
+### 2. Generate Pasangan Kunci VAPID
+Buka terminal dan jalankan:
+```bash
+npx web-push generate-vapid-keys
+```
+Perintah ini akan menghasilkan:
+- `Public Key` (masukkan ke `VAPID_PUBLIC_KEY`)
+- `Private Key` (masukkan ke `VAPID_PRIVATE_KEY`)
 
-> Tanpa job di cron-job.org, **tidak akan ada notif sama sekali**. Vercel tidak menjalankan pengecekan sendiri.
+### 3. Konfigurasi Environment Variables di Vercel
+Buka dashboard project di [vercel.com](https://vercel.com) &gt; **Settings** &gt; **Environment Variables**, isi:
 
-## Notif tidak masuk? Diagnosa dalam 1 menit
-
-Buka di browser: `https://<domain>.vercel.app/api/test-wa?key=<CRON_SECRET>`
-
-Hasilnya menampilkan 4 langkah, dan langkah yang `ok: false` adalah penyebabnya:
-
-| Langkah | Kalau gagal |
+| Variable | Keterangan |
 | --- | --- |
-| 1_konfigurasi | Env var di Vercel kosong/salah format → isi lalu **Redeploy** |
-| 2_database | Kolom belum ada → jalankan `supabase/migrasi-v3.sql` |
-| 3_seharusnya_dinotif | Daftar sewa yang mestinya dinotif + alasan gagal terakhir |
-| 4_kirim_tes_ke_admin | Jawaban asli Fonnte (device disconnect, token salah, kuota habis, dll.) |
+| `SUPABASE_URL` | URL project Supabase |
+| `SUPABASE_SERVICE_KEY` | `service_role` secret key Supabase |
+| `VAPID_PUBLIC_KEY` | Public key dari generator VAPID |
+| `VAPID_PRIVATE_KEY` | Private key dari generator VAPID |
+| `VAPID_SUBJECT` | Email admin, diawali `mailto:` (mis. `mailto:admin@domain.com`) |
+| `ADMIN_PASSWORD` | Password login web admin |
+| `CRON_SECRET` | String rahasia bebas untuk cron & diagnosa |
+| `PERINGATAN_MENIT` | Opsional: menit sebelum habis untuk peringatan (default: `10`) |
 
-Setelah tes berhasil, cek juga riwayat eksekusi job di cron-job.org: statusnya harus **200**, bukan 401/404/500.
+Setelah disimpan, lakukan **Redeploy** di Vercel.
 
-## Upgrade dari versi sebelumnya
+### 4. Setup cron-job.org (Penjadwal Rutin)
+1. Buka [cron-job.org](https://cron-job.org) (gratis).
+2. Buat job baru:
+   - **URL**: `https://<domain-kamu>.vercel.app/api/check-expired?key=<CRON_SECRET>`
+   - **Jadwal**: Setiap 5 menit.
+3. Simpan job.
 
-1. Jalankan `supabase/migrasi-v3.sql` di SQL Editor Supabase.
-2. Pastikan semua env var di `.env.example` sudah ada di Vercel (termasuk `ADMIN_PASSWORD`), lalu push & redeploy.
-3. Buka `/api/test-wa?key=...` untuk memastikan semuanya hijau.
+### 5. Aktifkan Notifikasi di HP / Browser Admin
+1. Buka web di browser atau HP admin: `https://<domain-kamu>.vercel.app`
+2. Login menggunakan `ADMIN_PASSWORD`.
+3. Klik tombol **"🔔 Aktifkan Notifikasi"** pada banner yang muncul di atas halaman Monitoring atau Ruang Chat.
+4. Izinkan notifikasi pada dialog pop-up browser. Status akan berubah menjadi **"Notifikasi Aktif ✓"**.
+5. *Khusus iPhone / iPad (iOS 16.4+)*: Tekan tombol **Share** di Safari &gt; pilih **"Add to Home Screen"** (Tambahkan ke Layar Utama), buka web dari ikon di Layar Utama, lalu klik tombol **"🔔 Aktifkan Notifikasi"**.
 
-## Pengembangan lokal
+### 6. Uji Notifikasi (Diagnosa)
+Buka di browser atau panggil URL:
+`https://<domain-kamu>.vercel.app/api/test-push?key=<CRON_SECRET>`
+
+Endpoint ini akan:
+1. Memverifikasi seluruh konfigurasi environment variable.
+2. Memeriksa koneksi database & jumlah subscriber push aktif.
+3. Mengirimkan 1 pesan tes langsung ke ruang chat bot dan push notification ke browser/HP admin.
+
+---
+
+## Pengembangan Lokal
 
 ```bash
 npm install
-npm run dev          # watch Tailwind → css/style.css
-npx vercel dev       # jalankan frontend + /api di localhost (butuh file .env.local)
+npm run dev          # Watch & kompilasi Tailwind CSS
+npx vercel dev       # Jalankan serverless function & web lokal (menggunakan .env.local)
 ```
-
-> `css/style.css` hasil build sudah disertakan, dan Vercel juga membangun ulang otomatis lewat `npm run build` saat deploy.
-
-## Mengubah paket harga dropdown
-
-Lewat tabel `price_packages` di dashboard Supabase (tambah/ubah baris, set `aktif = false` untuk menyembunyikan), atau lewat API `POST/PUT/DELETE /api/packages` setelah login.

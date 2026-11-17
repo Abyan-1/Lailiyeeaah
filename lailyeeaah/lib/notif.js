@@ -1,8 +1,7 @@
-// Logika notifikasi WhatsApp ke ADMIN (dipakai check-expired & test-wa)
+// Logika notifikasi Bot Lailyeeaah & Web Push
 const { formatWIB, formatRupiah, formatTipeAkun } = require("./util");
 
-// Ambil env var dan buang spasi / \r (file .env dari Windows sering membawa \r
-// yang membuat token Fonnte jadi tidak valid)
+// Ambil env var dan buang spasi / \r (file .env dari Windows sering membawa \r)
 function env(nama) {
   return (process.env[nama] || "").replace(/\r/g, "").trim();
 }
@@ -11,10 +10,14 @@ function cekKonfigurasi() {
   const masalah = [];
   if (!env("SUPABASE_URL")) masalah.push("SUPABASE_URL kosong");
   if (!env("SUPABASE_SERVICE_KEY")) masalah.push("SUPABASE_SERVICE_KEY kosong");
-  if (!env("FONNTE_TOKEN")) masalah.push("FONNTE_TOKEN kosong");
-  const wa = env("ADMIN_WA_NUMBER");
-  if (!wa) masalah.push("ADMIN_WA_NUMBER kosong");
-  else if (!/^62\d{8,13}$/.test(wa)) masalah.push("ADMIN_WA_NUMBER harus angka saja diawali 62, mis. 6281234567890");
+  if (!env("VAPID_PUBLIC_KEY")) masalah.push("VAPID_PUBLIC_KEY kosong");
+  if (!env("VAPID_PRIVATE_KEY")) masalah.push("VAPID_PRIVATE_KEY kosong");
+  const vapidSub = env("VAPID_SUBJECT");
+  if (!vapidSub) {
+    masalah.push("VAPID_SUBJECT kosong (contoh: mailto:admin@domain.com)");
+  } else if (!vapidSub.startsWith("mailto:") && !vapidSub.startsWith("https://")) {
+    masalah.push("VAPID_SUBJECT harus diawali mailto: atau https://");
+  }
   if (!env("CRON_SECRET")) masalah.push("CRON_SECRET kosong");
   return masalah;
 }
@@ -37,8 +40,8 @@ function sisaTeks(ms) {
 function buatPesan(r, jenis) {
   const judul =
     jenis === "habis"
-      ? "📢 *SEWA HABIS* — Lailyeeaah"
-      : `⚠️ *SEWA HAMPIR HABIS* — sisa ${sisaTeks(new Date(r.tanggal_berakhir) - Date.now())}`;
+      ? "📢 SEWA HABIS — Lailyeeaah"
+      : `⚠️ SEWA HAMPIR HABIS — sisa ${sisaTeks(new Date(r.tanggal_berakhir) - Date.now())}`;
   const baris = [judul, "", `Nama   : ${r.nama}`, `Device : ${r.device}`];
   if (r.tipe_akun) baris.push(`Layanan: ${formatTipeAkun(r.tipe_akun)}`);
   if (r.email_akun) baris.push(`Akun   : ${r.email_akun}`);
@@ -57,27 +60,9 @@ function buatPesan(r, jenis) {
   return baris.join("\n");
 }
 
-// Kirim ke nomor ADMIN saja. Mengembalikan { ok, detail } — detail berisi
-// jawaban mentah Fonnte supaya penyebab gagal bisa dilihat.
-async function kirimKeAdmin(message) {
-  const form = new FormData();
-  form.append("target", env("ADMIN_WA_NUMBER"));
-  form.append("message", message);
-  form.append("countryCode", "62");
-  try {
-    const resp = await fetch("https://api.fonnte.com/send", {
-      method: "POST",
-      headers: { Authorization: env("FONNTE_TOKEN") },
-      body: form,
-    });
-    const teks = await resp.text();
-    let json = {};
-    try { json = JSON.parse(teks); } catch {}
-    const ok = resp.ok && json.status === true;
-    return { ok, detail: ok ? null : (json.reason || teks || `HTTP ${resp.status}`).toString().slice(0, 300) };
-  } catch (e) {
-    return { ok: false, detail: "Tidak bisa menghubungi Fonnte: " + e.message };
-  }
-}
-
-module.exports = { env, cekKonfigurasi, peringatanMenit, buatPesan, kirimKeAdmin };
+module.exports = {
+  env,
+  cekKonfigurasi,
+  peringatanMenit,
+  buatPesan,
+};

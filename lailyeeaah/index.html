@@ -4,13 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lailyeeaah — Monitoring</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#FF8DA1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=3" />
+  <link rel="stylesheet" href="/css/style.css?v=4" />
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
   <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
-  <script src="/js/app.js?v=3"></script>
+  <script src="/js/app.js?v=4"></script>
 </head>
 <body x-data="monitoringPage()" x-cloak>
   <style>[x-cloak]{display:none!important}</style>
@@ -23,10 +25,14 @@
     </header>
 
     <!-- Tab navigasi -->
-    <nav class="flex justify-center items-center gap-2 mb-6">
+    <nav class="flex justify-center items-center gap-2 mb-6 flex-wrap">
       <a href="/index.html" class="tab-pill tab-pill-active">Monitoring</a>
       <a href="/riwayat.html" class="tab-pill tab-pill-inactive">Riwayat</a>
       <a href="/paket.html" class="tab-pill tab-pill-inactive">Paket Harga</a>
+      <a href="/chat.html" class="tab-pill tab-pill-inactive flex items-center gap-1.5">
+        <span>Chat Bot</span>
+        <span x-show="$store.chatBadge.unread > 0" x-text="$store.chatBadge.unread" class="bg-blush-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"></span>
+      </a>
       <button @click="logout()" class="tab-pill tab-pill-inactive flex items-center gap-1.5" title="Keluar">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blush-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -36,6 +42,46 @@
         <span>Keluar</span>
       </button>
     </nav>
+
+    <!-- Banner Web Push Notifikasi -->
+    <section class="bg-white rounded-2xl p-3.5 shadow-sm border border-blush-100 mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+             :class="push.isSubscribed ? 'bg-sage-200 text-sage-700' : 'bg-peach-100 text-peach-700'">
+          <i data-lucide="bell" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-ink">Web Push Notif</span>
+            <span class="badge !py-0.2 !px-2 !text-[10px]"
+                  :class="{
+                    'bg-sage-200 text-sage-700': push.isSubscribed,
+                    'bg-blush-100 text-blush-600': !push.isSubscribed && push.permission === 'default',
+                    'bg-peach-200 text-peach-700': push.permission === 'denied',
+                    'bg-gray-200 text-gray-600': !push.supported
+                  }"
+                  x-text="push.isSubscribed ? 'Aktif' : (push.permission === 'denied' ? 'Ditolak' : (!push.supported ? 'Tidak Didukung' : 'Belum Aktif'))">
+            </span>
+          </div>
+          <p class="text-[11px] text-ink/60 mt-0.5" x-text="push.statusDeskripsi"></p>
+          <p x-show="push.isIos && !push.isStandalone" class="text-[10px] text-peach-700 font-medium mt-0.5">
+            📱 iPhone: tambahkan ke Layar Utama (Add to Home Screen) dahulu untuk menerima notif.
+          </p>
+        </div>
+      </div>
+      <div class="flex-shrink-0 w-full sm:w-auto">
+        <button x-show="!push.isSubscribed && push.permission !== 'denied' && push.supported"
+                @click="push.aktifkan()"
+                :disabled="push.loading"
+                class="btn-primary w-full sm:w-auto text-xs !py-1.5 !px-3.5 flex items-center justify-center gap-1.5">
+          <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
+          <span x-text="push.loading ? 'Mengaktifkan…' : '🔔 Aktifkan Notifikasi'"></span>
+        </button>
+        <span x-show="push.isSubscribed" class="text-xs text-sage-700 font-semibold flex items-center gap-1">
+          <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Notifikasi Aktif
+        </span>
+      </div>
+    </section>
 
     <!-- Ringkasan -->
     <section class="grid grid-cols-3 gap-3 mb-5">
@@ -147,7 +193,7 @@
               <dt class="text-blush-600 font-semibold">⚠ Notif gagal</dt><dd class="text-[11px] truncate max-w-[170px] text-blush-600" :title="r.notif_error" x-text="r.notif_error || ''"></dd>
             </div>
             <div class="flex justify-between" x-show="r.notif_peringatan_terkirim || r.notif_terkirim">
-              <dt>Notif WA admin</dt><dd class="font-medium text-sage-700" x-text="r.notif_terkirim ? 'Habis ✓' : 'Peringatan ✓'"></dd>
+              <dt>Notif admin</dt><dd class="font-medium text-sage-700" x-text="r.notif_terkirim ? 'Habis ✓' : 'Peringatan ✓'"></dd>
             </div>
           </dl>
 

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lailyeeaah — Bot Chat</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#FF8DA1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css?v=4" />
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+  <script src="/js/app.js?v=4"></script>
+</head>
+<body x-data="chatPage()" x-cloak>
+  <style>
+    [x-cloak] { display: none !important; }
+    .msg-highlight {
+      animation: highlightPulse 2.5s ease-out;
+    }
+    @keyframes highlightPulse {
+      0% { transform: scale(1.02); box-shadow: 0 0 0 4px #F9A8C9; }
+      50% { transform: scale(1.01); box-shadow: 0 0 0 2px #F9A8C9; }
+      100% { transform: scale(1); box-shadow: none; }
+    }
+  </style>
+
+  <div class="max-w-3xl mx-auto px-4 pb-12 pt-8 flex flex-col min-h-screen">
+    <!-- Heading -->
+    <header class="text-center mb-6">
+      <h1 class="font-script text-blush-600 text-[40px] md:text-[48px] leading-tight">Lailyeeaah</h1>
+      <p class="text-sm text-ink/60 mt-1">Ruang Chat Bot & Notifikasi 🤖💬</p>
+    </header>
+
+    <!-- Tab navigasi -->
+    <nav class="flex justify-center items-center gap-2 mb-6 flex-wrap">
+      <a href="/index.html" class="tab-pill tab-pill-inactive">Monitoring</a>
+      <a href="/riwayat.html" class="tab-pill tab-pill-inactive">Riwayat</a>
+      <a href="/paket.html" class="tab-pill tab-pill-inactive">Paket Harga</a>
+      <a href="/chat.html" class="tab-pill tab-pill-active flex items-center gap-1.5">
+        <span>Chat Bot</span>
+        <span x-show="$store.chatBadge.unread > 0" x-text="$store.chatBadge.unread" class="bg-blush-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"></span>
+      </a>
+      <button @click="logout()" class="tab-pill tab-pill-inactive flex items-center gap-1.5" title="Keluar">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blush-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Keluar</span>
+      </button>
+    </nav>
+
+    <!-- Banner Web Push Notifikasi -->
+    <section class="bg-white rounded-2xl p-4 shadow-sm border border-blush-100 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+             :class="push.isSubscribed ? 'bg-sage-200 text-sage-700' : 'bg-peach-100 text-peach-700'">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-ink flex items-center gap-2">
+            <span>Web Push Notification</span>
+            <span class="badge"
+                  :class="{
+                    'bg-sage-200 text-sage-700': push.isSubscribed,
+                    'bg-blush-100 text-blush-600': !push.isSubscribed && push.permission === 'default',
+                    'bg-peach-200 text-peach-700': push.permission === 'denied',
+                    'bg-gray-200 text-gray-600': !push.supported
+                  }"
+                  x-text="push.isSubscribed ? 'Aktif' : (push.permission === 'denied' ? 'Izin Ditolak' : (!push.supported ? 'Tidak Didukung' : 'Belum Aktif'))">
+            </span>
+          </h2>
+          <p class="text-xs text-ink/60 mt-0.5" x-text="push.statusDeskripsi"></p>
+          <p x-show="push.isIos && !push.isStandalone" class="text-[11px] text-peach-700 mt-1 font-medium">
+            📱 Khusus iPhone/iPad: tekan tombol Share browser &gt; pilih "Add to Home Screen" agar notifikasi berfungsi.
+          </p>
+        </div>
+      </div>
+      <div class="flex-shrink-0 w-full sm:w-auto">
+        <button x-show="!push.isSubscribed && push.permission !== 'denied' && push.supported"
+                @click="push.aktifkan()"
+                :disabled="push.loading"
+                class="btn-primary w-full sm:w-auto text-xs py-2 px-4 flex items-center justify-center gap-1.5">
+          <i data-lucide="bell-ring" class="w-4 h-4"></i>
+          <span x-text="push.loading ? 'Mengaktifkan…' : '🔔 Aktifkan Notifikasi'"></span>
+        </button>
+        <span x-show="push.isSubscribed" class="text-xs text-sage-700 font-semibold flex items-center gap-1">
+          <i data-lucide="check-circle" class="w-4 h-4"></i> HP/Browser ini terhubung
+        </span>
+      </div>
+    </section>
+
+    <!-- Wadah Chat -->
+    <div class="bg-white rounded-3xl shadow-sm border border-blush-100 flex-1 flex flex-col overflow-hidden max-h-[72vh] min-h-[480px]">
+      <!-- Header Ruang Chat -->
+      <div class="p-4 border-b border-blush-100 bg-blush-50/70 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-blush-200 flex items-center justify-center text-xl shadow-inner">
+            🤖
+          </div>
+          <div>
+            <h2 class="font-semibold text-ink text-sm flex items-center gap-1.5">
+              <span>Bot Lailyeeaah</span>
+              <span class="w-2 h-2 rounded-full bg-sage-400 inline-block animate-pulse"></span>
+            </h2>
+            <p class="text-[11px] text-ink/55">Pemberitahuan otomatis sewa hampir habis &amp; sewa habis</p>
+          </div>
+        </div>
+        <button @click="muat(false)" class="text-xs text-blush-600 hover:text-blush-700 hover:bg-blush-100 p-2 rounded-xl transition" title="Muat ulang pesan">
+          <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Area Pesan (Scrollable) -->
+      <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-4 bg-blush-50/20">
+        <!-- Loading awal -->
+        <p x-show="loading" class="text-center text-ink/40 py-10 text-xs">Memuat percakapan…</p>
+
+        <!-- Kosong -->
+        <div x-show="!loading && messages.length === 0" class="text-center py-16 text-ink/50 text-xs">
+          <p class="text-4xl mb-2">💌</p>
+          <p class="font-medium text-ink">Belum ada pesan di ruang chat.</p>
+          <p class="mt-1 text-ink/40">Bot akan otomatis mengirimkan pesan saat sewa hampir habis atau sudah habis.</p>
+        </div>
+
+        <!-- Daftar gelembung pesan -->
+        <template x-for="m in messages" :key="m.id">
+          <div :id="'msg-' + m.id" class="flex flex-col transition-all duration-300"
+               :class="m.pengirim === 'admin' ? 'items-end' : 'items-start'">
+
+            <!-- Pengirim & Waktu -->
+            <div class="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-ink/50">
+              <span class="font-semibold" x-text="m.pengirim === 'bot' ? '🤖 Bot Lailyeeaah' : '👤 Admin'"></span>
+              <span>•</span>
+              <span x-text="fmtWIB(m.created_at)"></span>
+              <span x-show="m.jenis === 'peringatan'" class="badge bg-peach-200 text-peach-700 ml-1 !py-0.2 !px-1.5 !text-[10px]">Peringatan</span>
+              <span x-show="m.jenis === 'habis'" class="badge bg-blush-600 text-white ml-1 !py-0.2 !px-1.5 !text-[10px]">Habis</span>
+            </div>
+
+            <!-- Gelembung -->
+            <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 shadow-sm text-sm"
+                 :class="m.pengirim === 'admin'
+                   ? 'bg-blush-300 text-white rounded-tr-none'
+                   : 'bg-white border border-blush-100 text-ink rounded-tl-none'">
+
+              <!-- Isi Pesan -->
+              <p class="whitespace-pre-wrap leading-relaxed font-sans text-xs sm:text-sm" x-text="m.isi"></p>
+
+              <!-- Tombol Aksi Cepat (Khusus Pesan Bot Berjenis Peringatan / Habis) -->
+              <div x-show="m.pengirim === 'bot' && (m.jenis === 'peringatan' || m.jenis === 'habis')"
+                   class="mt-3 pt-3 border-t border-blush-100 flex flex-wrap gap-2">
+                <a href="/index.html"
+                   class="text-xs bg-blush-50 hover:bg-blush-100 text-blush-600 font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                  <i data-lucide="eye" class="w-3.5 h-3.5"></i> Lihat Kartu
+                </a>
+                <button x-show="m.rental_id && !m._selesai"
+                        @click="tandaiSelesai(m.rental_id, m)"
+                        class="text-xs bg-sage-200 hover:bg-sage-300 text-sage-700 font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                  <i data-lucide="check" class="w-3.5 h-3.5"></i> Tandai Selesai
+                </button>
+                <span x-show="m._selesai" class="text-xs text-sage-700 font-semibold flex items-center gap-1 py-1 px-2 bg-sage-100 rounded-lg">
+                  <i data-lucide="check-check" class="w-3.5 h-3.5"></i> Ditandai Selesai ✓
+                </span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Footer Input Chat -->
+      <form @submit.prevent="kirim()" class="p-3 bg-white border-t border-blush-100 flex items-center gap-2">
+        <input type="text"
+               x-model="text"
+               placeholder="Ketik catatan atau pesan untuk bot/riwayat admin…"
+               class="input-field !py-2.5 !text-xs sm:!text-sm flex-1"
+               :disabled="sending" />
+        <button type="submit"
+                :disabled="sending || !text.trim()"
+                class="btn-primary !px-4 !py-2.5 flex items-center justify-center gap-1.5 flex-shrink-0 disabled:opacity-50">
+          <i data-lucide="send" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Kirim</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div x-show="toast" x-transition class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-sage-300 text-sage-700 text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg z-50" x-text="toast"></div>
+</body>
+</html>

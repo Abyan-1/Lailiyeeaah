@@ -4,13 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lailyeeaah — Kelola Paket Harga</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#FF8DA1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=3" />
+  <link rel="stylesheet" href="/css/style.css?v=4" />
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
   <script src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
-  <script src="/js/app.js?v=3"></script>
+  <script src="/js/app.js?v=4"></script>
 </head>
 <body x-data="paketPage()" x-cloak>
   <style>[x-cloak]{display:none!important}</style>
@@ -26,6 +28,10 @@
       <a href="/index.html" class="tab-pill tab-pill-inactive">Monitoring</a>
       <a href="/riwayat.html" class="tab-pill tab-pill-inactive">Riwayat</a>
       <a href="/paket.html" class="tab-pill tab-pill-active">Paket Harga</a>
+      <a href="/chat.html" class="tab-pill tab-pill-inactive flex items-center gap-1.5">
+        <span>Chat Bot</span>
+        <span x-show="$store.chatBadge.unread > 0" x-text="$store.chatBadge.unread" class="bg-blush-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"></span>
+      </a>
       <button @click="logout()" class="tab-pill tab-pill-inactive flex items-center gap-1.5" title="Keluar">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blush-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>

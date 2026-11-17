@@ -58,11 +58,146 @@ function nowLocalInput() {
   return d.toISOString().slice(0, 16);
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Global store untuk badge pesan belum dibaca di navigasi semua halaman
+document.addEventListener("alpine:init", () => {
+  Alpine.store("chatBadge", {
+    unread: 0,
+    async update() {
+      if (location.pathname.endsWith("login.html")) return;
+      try {
+        const res = await api("/api/chat");
+        this.unread = res.unreadCount || 0;
+      } catch {}
+    },
+    init() {
+      this.update();
+      setInterval(() => {
+        if (document.visibilityState === "visible") {
+          this.update();
+        }
+      }, 15000);
+    },
+  });
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   if (typeof lucide !== "undefined" && lucide.createIcons) {
     lucide.createIcons();
   }
+
+  // Registrasi service worker di background untuk halaman non-login
+  if ("serviceWorker" in navigator && !location.pathname.endsWith("login.html")) {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("[SW] Gagal mendaftar sw.js:", err);
+    });
+  }
 });
+
+// ====================== PUSH NOTIFICATION MANAGER ======================
+function pushNotificationManager() {
+  return {
+    supported: false,
+    permission: "default", // default | granted | denied
+    isSubscribed: false,
+    loading: false,
+    isIos: false,
+    isStandalone: false,
+
+    async init() {
+      const ua = window.navigator.userAgent.toLowerCase();
+      this.isIos = /iphone|ipad|ipod/.test(ua);
+      this.isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+        this.supported = false;
+        return;
+      }
+      this.supported = true;
+      this.permission = Notification.permission;
+
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        const sub = await reg.pushManager.getSubscription();
+        this.isSubscribed = !!sub;
+      } catch (err) {
+        console.warn("[push] Registrasi sw atau cek subscription gagal:", err);
+      }
+    },
+
+    get statusDeskripsi() {
+      if (!this.supported) return "Browser ini tidak mendukung Web Push Notification.";
+      if (this.isSubscribed) return "Notifikasi Web Push aktif di perangkat ini.";
+      if (this.permission === "denied") return "Izin notifikasi ditolak di browser. Aktifkan di pengaturan browser.";
+      if (this.isIos && !this.isStandalone) return "Di iPhone, buka Share > Add to Home Screen agar bisa menerima notifikasi.";
+      return "Aktifkan notifikasi untuk menerima peringatan saat sewa hampir habis / habis.";
+    },
+
+    async aktifkan() {
+      if (!this.supported) {
+        alert("Browser ini tidak mendukung Web Push Notification.");
+        return;
+      }
+      if (this.isIos && !this.isStandalone) {
+        alert("Khusus iPhone / iPad (iOS 16.4+):\n1. Tekan tombol Share di Safari\n2. Pilih 'Add to Home Screen' (Tambahkan ke Layar Utama)\n3. Buka Lailyeeaah dari Layar Utama, lalu klik 'Aktifkan Notifikasi' kembali.");
+        return;
+      }
+
+      this.loading = true;
+      try {
+        // Ambil VAPID public key dari server
+        const { vapidPublicKey } = await api("/api/push-subscribe");
+        if (!vapidPublicKey) {
+          throw new Error("VAPID_PUBLIC_KEY belum diset di server");
+        }
+
+        // Minta izin ke pengguna (wajib dari interaksi klik tombol)
+        const perm = await Notification.requestPermission();
+        this.permission = perm;
+        if (perm !== "granted") {
+          throw new Error("Izin notifikasi tidak diberikan (status: " + perm + ")");
+        }
+
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+          });
+        }
+
+        // Simpan subscription ke Supabase via serverless function
+        await api("/api/push-subscribe", {
+          method: "POST",
+          body: JSON.stringify({
+            subscription: sub.toJSON(),
+            userAgent: navigator.userAgent,
+          }),
+        });
+
+        this.isSubscribed = true;
+      } catch (err) {
+        alert("Gagal mengaktifkan notifikasi: " + err.message);
+      } finally {
+        this.loading = false;
+        if (typeof lucide !== "undefined" && lucide.createIcons) {
+          setTimeout(() => lucide.createIcons(), 50);
+        }
+      }
+    },
+  };
+}
 
 // ====================== HALAMAN MONITORING ======================
 function monitoringPage() {
@@ -80,11 +215,12 @@ function monitoringPage() {
     toast: "",
     confirmDone: null, // rental yang sedang dikonfirmasi Done
     confirmHapus: null,
+    push: pushNotificationManager(),
 
     async init() {
       // "Sewa lagi" dari halaman Riwayat
       const ulang = localStorage.getItem("laily_sewa_lagi");
-      await Promise.all([this.muatRentals(), this.muatPackages()]);
+      await Promise.all([this.muatRentals(), this.muatPackages(), this.push.init()]);
       this.loading = false;
       setInterval(() => (this.now = Date.now()), 1000);
       if (ulang) {
@@ -169,9 +305,7 @@ function monitoringPage() {
     get filteredPackages() {
       if (!this.form.tipe_akun) return [];
       return this.packages.filter((p) => {
-        // Filter berdasarkan tipe akun
         const cocokTipe = p.tipe_akun === this.form.tipe_akun;
-        // Filter berdasarkan satuan yang dipilih user
         const nama = (p.nama_paket || "").toLowerCase();
         const satuan = this.form.durasi_satuan;
         const cocokSatuan =
@@ -182,15 +316,12 @@ function monitoringPage() {
       });
     },
     onTipeAkunChange() {
-      // Reset paket saat tipe akun berubah
       this.form.paket_harga_id = "";
-      // Auto-pilih satuan default: privat → bulan, sharing → hari
       if (this.form.tipe_akun === "pro_privat" || this.form.tipe_akun === "max_privat") {
         this.form.durasi_satuan = "bulan";
       } else {
         this.form.durasi_satuan = "hari";
       }
-      // Auto-pilih paket pertama yang cocok
       const paket = this.filteredPackages;
       if (paket.length > 0) {
         this.form.paket_harga_id = paket[0].id;
@@ -198,7 +329,6 @@ function monitoringPage() {
       }
     },
     onSatuanChange() {
-      // Reset paket saat satuan berubah, pilih paket pertama yang cocok
       this.form.paket_harga_id = "";
       const paket = this.filteredPackages;
       if (paket.length > 0) {
@@ -212,7 +342,6 @@ function monitoringPage() {
     },
     sesuaikanDurasiDariPaket(p) {
       if (!p) return;
-      // Durasi nilai otomatis dari nama paket (satuan sudah dipilih user)
       const nama = (p.nama_paket || "").toLowerCase();
       const match = nama.match(/(\d+)\s*(hari|minggu|bulan|tahun)/i);
       if (match) {
@@ -324,6 +453,7 @@ function monitoringPage() {
     },
     fmtWIB,
     fmtRupiah,
+    logout,
   };
 
   function kosong() {
@@ -367,7 +497,7 @@ function riwayatPage() {
             timeZone: WIB,
             year: "numeric",
             month: "2-digit",
-          }).format(new Date(r.selesai_pada || r.tanggal_berakhir)); // "YYYY-MM"
+          }).format(new Date(r.selesai_pada || r.tanggal_berakhir));
           cocokBulan = d === this.bulan;
         }
         return cocokNama && cocokBulan;
@@ -398,6 +528,7 @@ function riwayatPage() {
     formatTipeAkun,
     fmtWIB,
     fmtRupiah,
+    logout,
   };
 }
 
@@ -506,6 +637,164 @@ function paketPage() {
   };
 }
 
+// ====================== HALAMAN CHAT BOT ======================
+function chatPage() {
+  return {
+    messages: [],
+    loading: true,
+    text: "",
+    sending: false,
+    toast: "",
+    pollTimer: null,
+    push: pushNotificationManager(),
+
+    async init() {
+      await Promise.all([this.muat(false), this.push.init()]);
+      this.loading = false;
+
+      // Tandai pesan sudah dibaca saat membuka chat
+      await this.tandaiDibaca();
+
+      // Polling setiap 10 detik saat tab aktif
+      this.setupPolling();
+
+      // Tangani anchor hash scroll (#msg-<id>)
+      this.cekHashScroll();
+      window.addEventListener("hashchange", () => this.cekHashScroll());
+
+      if (typeof lucide !== "undefined" && lucide.createIcons) {
+        setTimeout(() => lucide.createIcons(), 50);
+      }
+    },
+
+    setupPolling() {
+      this.pollTimer = setInterval(async () => {
+        if (document.visibilityState === "visible") {
+          await this.muat(true);
+        }
+      }, 10000);
+    },
+
+    async muat(delta = false) {
+      try {
+        let url = "/api/chat";
+        if (delta && this.messages.length > 0) {
+          const lastMsg = this.messages[this.messages.length - 1];
+          if (lastMsg && lastMsg.created_at) {
+            url += `?after=${encodeURIComponent(lastMsg.created_at)}`;
+          }
+        }
+
+        const res = await api(url);
+        if (delta) {
+          if (res.data && res.data.length > 0) {
+            const ids = new Set(this.messages.map((m) => m.id));
+            const baru = res.data.filter((m) => !ids.has(m.id));
+            if (baru.length > 0) {
+              this.messages.push(...baru);
+              this.scrollToBottom();
+              await this.tandaiDibaca();
+            }
+          }
+        } else {
+          this.messages = res.data || [];
+          this.scrollToBottom();
+        }
+
+        if (Alpine.store("chatBadge")) {
+          Alpine.store("chatBadge").unread = 0;
+        }
+
+        if (typeof lucide !== "undefined" && lucide.createIcons) {
+          setTimeout(() => lucide.createIcons(), 50);
+        }
+      } catch (err) {
+        console.error("[chat] Gagal memuat pesan:", err);
+      }
+    },
+
+    async kirim() {
+      const isi = this.text.trim();
+      if (!isi) return;
+
+      this.sending = true;
+      try {
+        const { data } = await api("/api/chat", {
+          method: "POST",
+          body: JSON.stringify({ isi }),
+        });
+        if (data) {
+          this.messages.push(data);
+          this.text = "";
+          this.scrollToBottom();
+          if (typeof lucide !== "undefined" && lucide.createIcons) {
+            setTimeout(() => lucide.createIcons(), 50);
+          }
+        }
+      } catch (err) {
+        alert("Gagal mengirim pesan: " + err.message);
+      } finally {
+        this.sending = false;
+      }
+    },
+
+    async tandaiDibaca() {
+      try {
+        await api("/api/chat?action=read", { method: "PUT" });
+        if (Alpine.store("chatBadge")) {
+          Alpine.store("chatBadge").unread = 0;
+        }
+      } catch {}
+    },
+
+    async tandaiSelesai(rentalId, msg) {
+      if (!rentalId) return;
+      try {
+        await api(`/api/rentals?id=${rentalId}`, {
+          method: "PUT",
+          body: JSON.stringify({ action: "done" }),
+        });
+        msg._selesai = true;
+        this.tampilToast("Sewa berhasil ditandai selesai ✓");
+        if (typeof lucide !== "undefined" && lucide.createIcons) {
+          setTimeout(() => lucide.createIcons(), 50);
+        }
+      } catch (err) {
+        alert("Gagal menandai selesai: " + err.message);
+      }
+    },
+
+    cekHashScroll() {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith("#msg-")) {
+        setTimeout(() => {
+          const el = document.querySelector(hash);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.classList.add("msg-highlight");
+            setTimeout(() => el.classList.remove("msg-highlight"), 3000);
+          }
+        }, 300);
+      }
+    },
+
+    scrollToBottom() {
+      setTimeout(() => {
+        const c = document.getElementById("chat-messages-container");
+        if (c) c.scrollTop = c.scrollHeight;
+      }, 50);
+    },
+
+    tampilToast(msg) {
+      this.toast = msg;
+      setTimeout(() => (this.toast = ""), 2500);
+    },
+
+    fmtWIB,
+    logout,
+  };
+}
+
 // ====================== HALAMAN LOGIN ======================
 function loginPage() {
   return {
@@ -513,7 +802,6 @@ function loginPage() {
     error: "",
     loading: false,
     async init() {
-      // Jika sudah login, langsung ke Monitoring
       try {
         const { loggedIn } = await api("/api/login");
         if (loggedIn) location.href = "/index.html";
