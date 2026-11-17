@@ -26,13 +26,18 @@ function formatTipeAkun(val) {
   return TIPE_AKUN_LABEL[val] || val || "-";
 }
 
+function isLoginPage() {
+  const p = (location.pathname || "").toLowerCase();
+  return p.includes("login");
+}
+
 async function api(url, opt = {}) {
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
     ...opt,
   });
-  if (res.status === 401 && !location.pathname.endsWith("login.html")) {
+  if (res.status === 401 && !isLoginPage()) {
     location.href = "/login.html";
     throw new Error("Belum login");
   }
@@ -74,7 +79,7 @@ document.addEventListener("alpine:init", () => {
   Alpine.store("chatBadge", {
     unread: 0,
     async update() {
-      if (location.pathname.endsWith("login.html")) return;
+      if (isLoginPage()) return;
       try {
         const res = await api("/api/chat");
         this.unread = res.unreadCount || 0;
@@ -97,7 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Registrasi service worker di background untuk halaman non-login
-  if ("serviceWorker" in navigator && !location.pathname.endsWith("login.html")) {
+  if ("serviceWorker" in navigator && !isLoginPage()) {
     navigator.serviceWorker.register("/sw.js").catch((err) => {
       console.warn("[SW] Gagal mendaftar sw.js:", err);
     });
@@ -803,8 +808,11 @@ function loginPage() {
     loading: false,
     async init() {
       try {
-        const { loggedIn } = await api("/api/login");
-        if (loggedIn) location.href = "/index.html";
+        const res = await fetch("/api/login", { credentials: "same-origin" });
+        const data = await res.json().catch(() => ({}));
+        if (data.loggedIn) {
+          location.href = "/index.html";
+        }
       } catch {}
     },
     async masuk() {
