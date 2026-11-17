@@ -11,36 +11,47 @@ const { env, cekKonfigurasi, peringatanMenit, buatPesan } = require("../lib/noti
 const { kirimPesanBot } = require("../lib/chat");
 
 module.exports = async (req, res) => {
-  const auth = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-  const key = req.query.key || auth;
-  const isCronKeyValid = env("CRON_SECRET") && key === env("CRON_SECRET");
-  const isAdmin = isAuthed(req);
-
-  if (!isCronKeyValid && !isAdmin) {
-    return res.status(401).json({ error: "Secret key salah atau belum login admin" });
-  }
-
-  const masalah = cekKonfigurasi();
-  if (masalah.length) return res.status(500).json({ error: "Konfigurasi belum lengkap", masalah });
-
-  let supabase;
   try {
-    supabase = getSupabase();
-  } catch (dbErr) {
-    return res.status(500).json({ error: dbErr.message });
-  }
+    const query = req.query || {};
+    const auth = (req.headers && req.headers.authorization ? req.headers.authorization : "").replace(/^Bearer\s+/i, "");
+    const key = query.key || auth;
+    const isCronKeyValid = env("CRON_SECRET") && key && key === env("CRON_SECRET");
+    let isAdmin = false;
+    try {
+      isAdmin = isAuthed(req);
+    } catch {}
 
-  const now = new Date();
-  const batasPeringatan = new Date(now.getTime() + peringatanMenit() * 60000);
-  const hasil = {
-    dicek_pada: now.toISOString(),
-    peringatan_menit: peringatanMenit(),
-    terkirim: 0,
-    gagal: 0,
-    detail: [],
-  };
+    if (!isCronKeyValid && !isAdmin) {
+      return res.status(401).json({
+        error: "Akses ditolak: wajib login admin atau menyertakan ?key=<CRON_SECRET>",
+      });
+    }
 
-  try {
+    const masalah = cekKonfigurasi();
+    if (masalah.length) {
+      return res.status(500).json({
+        error: "Konfigurasi server belum lengkap: " + masalah.join(", "),
+        masalah,
+      });
+    }
+
+    let supabase;
+    try {
+      supabase = getSupabase();
+    } catch (dbErr) {
+      return res.status(500).json({ error: "Gagal menghubungkan database: " + dbErr.message });
+    }
+
+    const now = new Date();
+    const batasPeringatan = new Date(now.getTime() + peringatanMenit() * 60000);
+    const hasil = {
+      dicek_pada: now.toISOString(),
+      peringatan_menit: peringatanMenit(),
+      terkirim: 0,
+      gagal: 0,
+      detail: [],
+    };
+
     // Semua sewa aktif yang habis sebelum batas peringatan & masih ada notif yang belum terkirim
     const { data, error } = await supabase
       .from("rentals")
@@ -49,7 +60,10 @@ module.exports = async (req, res) => {
       .eq("notif_terkirim", false)
       .lte("tanggal_berakhir", batasPeringatan.toISOString())
       .order("tanggal_berakhir", { ascending: true });
-    if (error) throw error;
+
+    if (error) {
+      return res.status(500).json({ error: "Database error: " + error.message });
+    }
 
     for (const r of data || []) {
       const sudahHabis = new Date(r.tanggal_berakhir) <= now;
@@ -103,16 +117,17 @@ module.exports = async (req, res) => {
           push,
         });
       } catch (err) {
-        // Gagal menyimpan pesan ke database: catat error & coba lagi putaran berikutnya
         const pesanGagal = err.message || "Gagal mengirim pesan bot";
         hasil.gagal++;
-        await supabase
-          .from("rentals")
-          .update({
-            notif_percobaan: (r.notif_percobaan || 0) + 1,
-            notif_error: pesanGagal,
-          })
-          .eq("id", r.id);
+        try {
+          await supabase
+            .from("rentals")
+            .update({
+              notif_percobaan: (r.notif_percobaan || 0) + 1,
+              notif_error: pesanGagal,
+            })
+            .eq("id", r.id);
+        } catch {}
 
         hasil.detail.push({
           nama: r.nama,
@@ -124,7 +139,10 @@ module.exports = async (req, res) => {
     }
 
     return res.status(200).json(hasil);
-  } catch (e) {
-    return res.status(500).json({ error: e.message || "Terjadi kesalahan server", ...hasil });
+  } catch (fatalErr) {
+    console.error("[check-expired] Fatal error:", fatalErr);
+    return res.status(500).json({
+      error: fatalErr.message || "Terjadi kesalahan server pada check-expired",
+    });
   }
 };

@@ -18,7 +18,8 @@ module.exports = async (req, res) => {
   try {
     // ---------- GET: Daftar pesan & jumlah belum dibaca ----------
     if (req.method === "GET") {
-      const after = req.query.after;
+      const query = req.query || {};
+      const after = query.after;
 
       let messages = [];
       if (after) {
@@ -83,7 +84,8 @@ module.exports = async (req, res) => {
 
     // ---------- PUT: Tandai pesan sebagai dibaca ----------
     if (req.method === "PUT") {
-      const action = req.query.action || (req.body && req.body.action);
+      const query = req.query || {};
+      const action = query.action || (req.body && req.body.action);
       if (action === "read") {
         const { error } = await supabase
           .from("chat_messages")

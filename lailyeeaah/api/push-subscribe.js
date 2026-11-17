@@ -85,7 +85,8 @@ module.exports = async (req, res) => {
 
     // ---------- DELETE: Hapus subscription ----------
     if (req.method === "DELETE") {
-      const endpoint = req.query.endpoint || (req.body && req.body.endpoint);
+      const query = req.query || {};
+      const endpoint = query.endpoint || (req.body && req.body.endpoint);
       if (!endpoint) {
         return res.status(400).json({ error: "Parameter endpoint wajib diisi" });
       }

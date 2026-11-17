@@ -23,7 +23,8 @@ module.exports = async (req, res) => {
   try {
     // ---------- GET: daftar sewa ----------
     if (req.method === "GET") {
-      const status = req.query.status;
+      const query = req.query || {};
+      const status = query.status;
       let q = supabase.from("rentals").select("*");
       if (status) q = q.eq("status", status);
       // aktif: urut dari paling cepat habis; selesai: urut terbaru
@@ -77,7 +78,8 @@ module.exports = async (req, res) => {
 
     // ---------- PUT: edit / Done ----------
     if (req.method === "PUT") {
-      const id = req.query.id;
+      const query = req.query || {};
+      const id = query.id;
       if (!id) return res.status(400).json({ error: "Parameter id wajib" });
       const b = req.body || {};
 
@@ -157,7 +159,8 @@ module.exports = async (req, res) => {
 
     // ---------- DELETE ----------
     if (req.method === "DELETE") {
-      const id = req.query.id;
+      const query = req.query || {};
+      const id = query.id;
       if (!id) return res.status(400).json({ error: "Parameter id wajib" });
       const { error } = await supabase.from("rentals").delete().eq("id", id);
       if (error) throw error;

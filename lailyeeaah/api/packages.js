@@ -18,8 +18,9 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === "GET") {
+      const query = req.query || {};
       let q = supabase.from("price_packages").select("*").order("harga", { ascending: true });
-      if (!req.query.all) q = q.eq("aktif", true);
+      if (!query.all) q = q.eq("aktif", true);
       const { data, error } = await q;
       if (error) throw error;
       return res.status(200).json({ data });
@@ -42,7 +43,8 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === "PUT") {
-      const id = req.query.id;
+      const query = req.query || {};
+      const id = query.id;
       if (!id) return res.status(400).json({ error: "Parameter id wajib" });
       const b = req.body || {};
       const update = {};
@@ -65,7 +67,8 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === "DELETE") {
-      const id = req.query.id;
+      const query = req.query || {};
+      const id = query.id;
       if (!id) return res.status(400).json({ error: "Parameter id wajib" });
       const { error } = await supabase.from("price_packages").update({ aktif: false }).eq("id", id);
       if (error) throw error;
