@@ -1,12 +1,23 @@
 // Web Push Notification Helper (VAPID)
-const webpush = require("web-push");
 const { getSupabase } = require("./util");
+
+let _webpush = null;
+async function getWebPush() {
+  if (_webpush) return _webpush;
+  try {
+    const mod = await import("web-push");
+    _webpush = mod.default || mod;
+  } catch (esmErr) {
+    _webpush = require("web-push");
+  }
+  return _webpush;
+}
 
 function env(nama) {
   return (process.env[nama] || "").replace(/\r/g, "").trim().replace(/^["']|["']$/g, "");
 }
 
-function initVapid() {
+async function initVapid() {
   const pub = env("VAPID_PUBLIC_KEY");
   const priv = env("VAPID_PRIVATE_KEY");
   let sub = env("VAPID_SUBJECT") || "mailto:admin@lailyeeaah.local";
@@ -18,8 +29,9 @@ function initVapid() {
     throw new Error("VAPID_PUBLIC_KEY dan VAPID_PRIVATE_KEY wajib diset di environment variable");
   }
 
+  const webpush = await getWebPush();
   webpush.setVapidDetails(sub, pub, priv);
-  return { pub, priv, sub };
+  return { pub, priv, sub, webpush };
 }
 
 /**
@@ -33,8 +45,10 @@ function initVapid() {
 async function kirimPushKeSemua(payload) {
   const ringkasan = { terkirim: 0, gagal: 0, dihapus: 0, total: 0 };
 
+  let webpush;
   try {
-    initVapid();
+    const v = await initVapid();
+    webpush = v.webpush;
   } catch (err) {
     console.error("[push] Inisialisasi VAPID gagal:", err.message);
     return { ...ringkasan, error: err.message };
