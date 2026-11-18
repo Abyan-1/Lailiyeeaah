@@ -236,10 +236,6 @@
           <input type="tel" x-model="form.no_wa" inputmode="numeric" pattern="[0-9]*" class="input-field" placeholder="628xxxxxxxxxx" />
         </div>
         <div>
-          <label class="label-field">Email pelanggan (opsional)</label>
-          <input type="email" x-model="form.email_pelanggan" class="input-field" placeholder="mis. pelanggan@gmail.com" />
-        </div>
-        <div>
           <label class="label-field font-bold text-blush-700">Pilihan Akun / Layanan *</label>
           <select x-model="form.tipe_akun" @change="onTipeAkunChange()" required class="input-field font-medium">
             <option value="pro_sharing">Pro Sharing</option>
