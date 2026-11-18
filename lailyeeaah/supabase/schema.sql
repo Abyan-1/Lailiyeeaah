@@ -22,6 +22,7 @@ create table if not exists public.rentals (
   device text not null,
   tipe_akun text,                               -- pro_sharing / pro_privat / max_sharing / max_privat
   email_akun text,                              -- akun email Claude yang digunakan
+  status_bayar text check (status_bayar in ('sudah_bayar','dana_talangan')), -- opsional
   tanggal_sewa timestamptz not null,
   durasi_nilai integer not null check (durasi_nilai >= 1),
   durasi_satuan text not null check (durasi_satuan in ('hari','minggu','bulan','tahun')),

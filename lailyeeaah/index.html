@@ -190,6 +190,8 @@
             <div class="flex justify-between" x-show="r.tipe_akun"><dt>Layanan</dt><dd class="font-medium text-blush-600" x-text="formatTipeAkun(r.tipe_akun)"></dd></div>
             <div class="flex justify-between" x-show="r.email_akun"><dt>Akun Claude</dt><dd class="font-mono text-[11px] truncate max-w-[170px]" x-text="r.email_akun"></dd></div>
             <div class="flex justify-between" x-show="r.email_pelanggan"><dt>Email Cust</dt><dd class="text-[11px] truncate max-w-[170px]" x-text="r.email_pelanggan"></dd></div>
+            <div class="flex justify-between" x-show="r.status_bayar"><dt>Pembayaran</dt>
+              <dd class="font-medium" :class="r.status_bayar === 'sudah_bayar' ? 'text-sage-700' : 'text-peach-700'" x-text="formatStatusBayar(r.status_bayar)"></dd></div>
             <div class="flex justify-between"><dt>Mulai</dt><dd x-text="fmtWIB(r.tanggal_sewa)"></dd></div>
             <div class="flex justify-between"><dt>Berakhir</dt><dd x-text="fmtWIB(r.tanggal_berakhir)"></dd></div>
             <div class="flex justify-between"><dt>Durasi</dt><dd x-text="`${r.durasi_nilai} ${r.durasi_satuan}`"></dd></div>
@@ -260,6 +262,14 @@
             <option value="iPad"></option>
             <option value="TV"></option>
           </datalist>
+        </div>
+        <div>
+          <label class="label-field">Status pembayaran (opsional)</label>
+          <select x-model="form.status_bayar" class="input-field">
+            <option value="">— Tidak dipilih —</option>
+            <option value="sudah_bayar">Sudah Bayar</option>
+            <option value="dana_talangan">Dana Talangan</option>
+          </select>
         </div>
         <div>
           <label class="label-field">Tanggal sewa *</label>

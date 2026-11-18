@@ -62,6 +62,7 @@ module.exports = async (req, res) => {
           device: String(b.device).trim(),
           tipe_akun: b.tipe_akun || null,
           email_akun: b.email_akun ? String(b.email_akun).trim() : null,
+          status_bayar: b.status_bayar || null,
           tanggal_sewa: new Date(b.tanggal_sewa).toISOString(),
           durasi_nilai: parseInt(b.durasi_nilai, 10),
           durasi_satuan: b.durasi_satuan,
@@ -130,6 +131,7 @@ module.exports = async (req, res) => {
         device: String(b.device).trim(),
         tipe_akun: b.tipe_akun || null,
         email_akun: b.email_akun ? String(b.email_akun).trim() : null,
+        status_bayar: b.status_bayar || null,
         tanggal_sewa: new Date(b.tanggal_sewa).toISOString(),
         durasi_nilai: parseInt(b.durasi_nilai, 10),
         durasi_satuan: b.durasi_satuan,
@@ -183,6 +185,8 @@ function validasi(b) {
   if (!n || n < 1) return "Durasi minimal 1";
   if (!["hari", "minggu", "bulan", "tahun"].includes(b.durasi_satuan)) return "Satuan durasi tidak valid";
   if (!b.paket_harga_id) return "Paket harga wajib dipilih";
+  if (b.status_bayar && !["sudah_bayar", "dana_talangan"].includes(b.status_bayar))
+    return "Status pembayaran tidak valid";
   if (b.no_wa && !/^\d{8,15}$/.test(String(b.no_wa).replace(/\D/g, "")))
     return "Nomor WA tidak valid (contoh: 628123456789)";
   return null;

@@ -26,6 +26,15 @@ function formatTipeAkun(val) {
   return TIPE_AKUN_LABEL[val] || val || "-";
 }
 
+const STATUS_BAYAR_LABEL = {
+  sudah_bayar: "Sudah Bayar",
+  dana_talangan: "Dana Talangan",
+};
+
+function formatStatusBayar(val) {
+  return STATUS_BAYAR_LABEL[val] || "";
+}
+
 function isLoginPage() {
   const p = (location.pathname || "").toLowerCase();
   return p.includes("login");
@@ -378,6 +387,7 @@ function monitoringPage() {
     // ---------- hitung harga & filter paket berdasarkan satuan & tipe akun ----------
     getPaketSatuan,
     formatTipeAkun,
+    formatStatusBayar,
     get filteredPackages() {
       if (!this.form.tipe_akun) return [];
       return this.packages.filter((p) => {
@@ -460,6 +470,7 @@ function monitoringPage() {
           device: r.device,
           tipe_akun: r.tipe_akun || "pro_sharing",
           email_akun: r.email_akun || "",
+          status_bayar: r.status_bayar || "",
           tanggal_sewa: t.toISOString().slice(0, 16),
           durasi_nilai: r.durasi_nilai,
           durasi_satuan: r.durasi_satuan,
@@ -540,6 +551,7 @@ function monitoringPage() {
       device: "",
       tipe_akun: "pro_sharing",
       email_akun: "",
+      status_bayar: "",
       tanggal_sewa: nowLocalInput(),
       durasi_nilai: 1,
       durasi_satuan: "hari",
